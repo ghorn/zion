@@ -1,0 +1,8 @@
+
+load("//:dem_names.bzl", "dem_names")
+load("@rules_python//python:defs.bzl", "py_binary")
+
+py_binary(
+    name = "main",
+    srcs = ["main.py"],
+)

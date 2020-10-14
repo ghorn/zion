@@ -1,0 +1,5 @@
+/bazel-bin
+/bazel-out
+/bazel-zion_project*
+/bazel-testlogs
+image_to_stl
