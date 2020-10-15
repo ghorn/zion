@@ -104,6 +104,25 @@ echo $(@D)/height_map2.stl
 """,
 )
 
+# turn pixel data into binary blob of floats
+# Convert raw pixel data to a PNG image.
+py_binary(
+    name = "pixel_data_to_floating_blob",
+    srcs = ["pixel_data_to_floating_blob.py"],
+    srcs_version = "PY3",
+    python_version = "PY3",
+)
+
+genrule(
+    name = "floating_blob",
+    tools = [":pixel_data_to_floating_blob"],
+    outs = ["floating_blob.dat"],
+    srcs = [":pixel_data.dat"],
+    cmd ="""
+$(location :pixel_data_to_floating_blob) $< $@
+du -hs $(location :floating_blob.dat)
+""",
+)
 
 cxx_opts = ["-Wall", "-Wextra", "-Werror", "-std=c++17"]
 cc_binary(
