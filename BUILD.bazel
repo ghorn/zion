@@ -63,7 +63,7 @@ genrule(
     outs = ["height_map.png", "mask.png"],
     srcs = [":pixel_data.dat"],
     cmd ="""
-$(location :pixel_data_to_png) $< --png_path $(location :height_map.png) --mask_path $(location :mask.png) --downsample 10
+$(location :pixel_data_to_png) $< --png_path $(location :height_map.png) --mask_path $(location :mask.png) --downsample 40
 du -hs $(location :height_map.png) $(location :mask.png)
 """,
 )
@@ -119,12 +119,18 @@ genrule(
     outs = ["floating_blob.dat"],
     srcs = [":pixel_data.dat"],
     cmd ="""
-$(location :pixel_data_to_floating_blob) $< $@
+$(location :pixel_data_to_floating_blob) $< $@ --downsample 40
 du -hs $(location :floating_blob.dat)
 """,
 )
 
-cxx_opts = ["-Wall", "-Wextra", "-Werror", "-std=c++17"]
+cxx_opts = [
+    "-Wall",
+    "-Wextra",
+    "-Wconversion",
+    "-Werror",
+    "-std=c++17",
+]
 cc_binary(
     name = "hmstl",
     srcs = [
@@ -134,4 +140,16 @@ cc_binary(
     ],
     copts = cxx_opts,
     deps = ["@trix//:trix"],
+)
+
+# Turn the PNG image into an stl with hmstl.
+genrule(
+    name="stl_from_float",
+    tools = [":hmstl"],
+    srcs = [":floating_blob.dat"],
+    outs = ["height_map_from_float.stl"],
+    cmd = """
+$(location :hmstl) -i $(location :floating_blob.dat) -o $@
+du -hs $@
+""",
 )

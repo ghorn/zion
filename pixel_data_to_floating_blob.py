@@ -19,6 +19,7 @@ def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('height_map_path', help='Input height map data path.')
   parser.add_argument('output_path', help='Output path for blob.')
+  parser.add_argument('--downsample', type=int, help='Optional downsample factor.')
   flags = parser.parse_args()
 
   # load data
@@ -31,6 +32,17 @@ def main():
   t0 = time.time()
   heightmap_data = heightmap_data.astype(np.float32)
   print('converted to 32 bit floats in {} seconds'.format(time.time() - t0))
+
+  # downsample
+  if flags.downsample:
+    t0 = time.time()
+    heightmap_data = heightmap_data[::flags.downsample, ::flags.downsample] / flags.downsample
+    print('decimated in {} seconds'.format(time.time() - t0))
+
+  # normalize image height
+  t0 = time.time()
+  heightmap_data -= np.nanmin(heightmap_data)
+  print("Normalized heightmap in {} seconds.".format(time.time() - t0))
 
   # write blob
   t0 = time.time()

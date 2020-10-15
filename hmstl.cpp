@@ -3,6 +3,8 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <cmath>
+#include <iostream>
 
 extern "C" {
 #include <libtrix.h>
@@ -11,54 +13,28 @@ extern "C" {
 
 typedef struct {
   int32_t base; // boolean; output walls and bottom as well as terrain surface if true
-  int32_t ascii; // boolean; output ASCII STL instead of binary STL if true
   char *input; // path to input file; use stdin if NULL
   char *output; // path to output file; use stdout if NULL
-  char *mask; // path to mask file; no mask if NULL
-  int32_t threshold; // 0-255; maximum value considered masked
-  int32_t reversed; // boolean; reverse results of mask tests if true
-  int32_t heightmask; // boolean; use heightmap as it's own mask if true
   float zscale; // scaling factor applied to raw Z values
   float baseheight; // height in STL units of base below lowest terrain (technically, offset added to scaled Z values)
 } Settings;
 
 Settings CONFIG = {
   1,    // generate base (walls and bottom)
-  0,    // binary output
   NULL, // read from stdin
   NULL, // write to stdout
-  NULL, // no mask
-  127,  // middle of 8 bit range
-  0,    // normal un-reversed mask
-  0,    // no heightmasking
   1.0,  // no z scaling (use raw heightmap values)
   1.0   // minimum base thickness of one unit
 };
 
-Heightmap *mask = NULL;
+static inline float LookupIndex(const Heightmap &hm, uint32_t x, uint32_t y) {
+  return hm.data[y * hm.width + x];
+}
 
 // If a mask is defined, only portions of the heightmap that are visible through the mask are output.
 // Bright areas of the mask image are considered transparent and dark areas are considered opaque.
-int32_t Masked(uint32_t x, uint32_t y) {
-  uint64_t index;
-  int32_t result = 0;
-
-  // is masking mode even on?
-  // (not if no heightmask or mask file.)
-  if (mask == NULL) {
-    return 0;
-  }
-
-  index = (y * mask->width) + x;
-  if (mask->data[index] <= (uint8_t)CONFIG.threshold) {
-    result = 1;
-  }
-
-  if (CONFIG.reversed) {
-    result = !result;
-  }
-
-  return result;
+static inline bool Masked(const Heightmap &hm, uint32_t x, uint32_t y) {
+  return std::isnan(LookupIndex(hm, x, y));
 }
 
 static trix_result Wall(trix_mesh *mesh, const trix_vertex *a, const trix_vertex *b) {
@@ -102,8 +78,8 @@ static float avgnonneg(float zp, float z1, float z2, float z3) {
   return sum / (float)n;
 }
 
-static float hmzat(const Heightmap *hm, uint32_t x, uint32_t y) {
-  return CONFIG.baseheight + (CONFIG.zscale * hm->data[(hm->width * y) + x]);;
+static inline float hmzat(const Heightmap &hm, uint32_t x, uint32_t y) {
+  return CONFIG.baseheight + CONFIG.zscale * LookupIndex(hm, x, y);
 }
 
 // given four vertices and a mesh, add two triangles representing the quad with given corners
@@ -130,16 +106,16 @@ trix_result Surface(trix_mesh *mesh, const trix_vertex *v1, const trix_vertex *v
   return TRIX_OK;
 }
 
-trix_result Mesh(const Heightmap *hm, trix_mesh *mesh) {
+trix_result Mesh(const Heightmap &hm, trix_mesh *mesh) {
   uint32_t x, y;
   float az, bz, cz, dz, ez, fz, gz, hz;
   trix_vertex vp, v1, v2, v3, v4;
   trix_result r;
 
-  for (y = 0; y < hm->height; y++) {
-    for (x = 0; x < hm->width; x++) {
+  for (y = 0; y < hm.height; y++) {
+    for (x = 0; x < hm.width; x++) {
 
-      if (Masked(x, y)) {
+      if (Masked(hm, x, y)) {
         continue;
       }
 
@@ -191,31 +167,31 @@ trix_result Mesh(const Heightmap *hm, trix_mesh *mesh) {
         bz = hmzat(hm, x, y - 1);
       }
 
-      if (y == 0 || x + 1 == hm->width) {
+      if (y == 0 || x + 1 == hm.width) {
         cz = -1;
       } else {
         cz = hmzat(hm, x + 1, y - 1);
       }
 
-      if (x + 1 == hm->width) {
+      if (x + 1 == hm.width) {
         dz = -1;
       } else {
         dz = hmzat(hm, x + 1, y);
       }
 
-      if (x + 1 == hm->width || y + 1 == hm->height) {
+      if (x + 1 == hm.width || y + 1 == hm.height) {
         ez = -1;
       } else {
         ez = hmzat(hm, x + 1, y + 1);
       }
 
-      if (y + 1 == hm->height) {
+      if (y + 1 == hm.height) {
         fz = -1;
       } else {
         fz = hmzat(hm, x, y + 1);
       }
 
-      if (y + 1 == hm->height || x == 0) {
+      if (y + 1 == hm.height || x == 0) {
         gz = -1;
       } else {
         gz = hmzat(hm, x - 1, y + 1);
@@ -229,22 +205,22 @@ trix_result Mesh(const Heightmap *hm, trix_mesh *mesh) {
 
       // pixel vertex
       vp.x = (float)x;
-      vp.y = (float)(hm->height - y);
+      vp.y = (float)(hm.height - y);
       vp.z = hmzat(hm, x, y);
 
       // Vertex 1
-      v1.x = (float)x - 0.5;
-      v1.y = ((float)hm->height - ((float)y - 0.5));
+      v1.x = (float)x - 0.5f;
+      v1.y = ((float)hm.height - ((float)y - 0.5f));
       v1.z = avgnonneg(vp.z, az, bz, hz);
 
       // Vertex 2
-      v2.x = (float)x + 0.5;
+      v2.x = (float)x + 0.5f;
       v2.y = v1.y;
       v2.z = avgnonneg(vp.z, bz, cz, dz);
 
       // Vertex 3
       v3.x = v2.x;
-      v3.y = ((float)hm->height - ((float)y + 0.5));
+      v3.y = ((float)hm.height - ((float)y + 0.5f));
       v3.z = avgnonneg(vp.z, dz, ez, fz);
 
       // Vertex 4
@@ -263,28 +239,28 @@ trix_result Mesh(const Heightmap *hm, trix_mesh *mesh) {
       }
 
       // north wall (vertex 1 to 2)
-      if (y == 0 || Masked(x, y - 1)) {
+      if (y == 0 || Masked(hm, x, y - 1)) {
         if ((r = Wall(mesh, &v1, &v2)) != TRIX_OK) {
           return r;
         }
       }
 
       // east wall (vertex 2 to 3)
-      if (x + 1 == hm->width || Masked(x + 1, y)) {
+      if (x + 1 == hm.width || Masked(hm, x + 1, y)) {
         if ((r = Wall(mesh, &v2, &v3)) != TRIX_OK) {
           return r;
         }
       }
 
       // south wall (vertex 3 to 4)
-      if (y + 1 == hm->height || Masked(x, y + 1)) {
+      if (y + 1 == hm.height || Masked(hm, x, y + 1)) {
         if ((r = Wall(mesh, &v3, &v4)) != TRIX_OK) {
           return r;
         }
       }
 
       // west wall (vertex 4 to 1)
-      if (x == 0 || Masked(x - 1, y)) {
+      if (x == 0 || Masked(hm, x - 1, y)) {
         if ((r = Wall(mesh, &v4, &v1)) != TRIX_OK) {
           return r;
         }
@@ -302,7 +278,7 @@ trix_result Mesh(const Heightmap *hm, trix_mesh *mesh) {
 }
 
 // returns 0 on success, nonzero otherwise
-trix_result HeightmapToSTL(Heightmap *hm) {
+trix_result HeightmapToSTL(const Heightmap &hm) {
   trix_result r;
   trix_mesh *mesh;
 
@@ -315,7 +291,7 @@ trix_result HeightmapToSTL(Heightmap *hm) {
   }
 
   // writes to stdout if CONFIG.output is null, otherwise writes to path it names
-  if ((r = trixWrite(mesh, CONFIG.output, (CONFIG.ascii ? TRIX_STL_ASCII : TRIX_STL_BINARY))) != TRIX_OK) {
+  if ((r = trixWrite(mesh, CONFIG.output, TRIX_STL_BINARY)) != TRIX_OK) {
     return r;
   }
 
@@ -335,10 +311,6 @@ int32_t parseopts(int32_t argc, char **argv) {
 
   while ((c = getopt(argc, argv, "az:b:o:i:m:t:rhs")) != -1) {
     switch (c) {
-    case 'a':
-      // ASCII mode output
-      CONFIG.ascii = 1;
-      break;
     case 'z':
       // Z scale (heightmap value units relative to XY)
       if (sscanf(optarg, "%20f", &CONFIG.zscale) != 1 || CONFIG.zscale <= 0) {
@@ -360,25 +332,6 @@ int32_t parseopts(int32_t argc, char **argv) {
     case 'i':
       // Input file (default stdin)
       CONFIG.input = optarg;
-      break;
-    case 'm':
-      // Mask file (default none)
-      CONFIG.mask = optarg;
-      break;
-    case 't':
-      // Mask threshold
-      if (sscanf(optarg, "%5d", &CONFIG.threshold) != 1 || CONFIG.threshold < 0 || CONFIG.threshold > 255) {
-        fprintf(stderr, "THRESHOLD must be a number between 0 to 255 inclusive\n");
-        return 1;
-      }
-      break;
-    case 'r':
-      // Reverse mask
-      CONFIG.reversed = 1;
-      break;
-    case 'h':
-      // Heightmask mode
-      CONFIG.heightmask = 1;
       break;
     case 's':
       // surface only mode - omit base (walls and bottom)
@@ -422,54 +375,33 @@ int32_t parseopts(int32_t argc, char **argv) {
     return 1;
   }
 
+  if (CONFIG.input == NULL) {
+    std::cout << "No input path set. Use -i to set input path." << std::endl;
+    std::exit(1);
+  }
+
+  if (CONFIG.output == NULL) {
+    std::cout << "No output path set. Use -o to set output path." << std::endl;
+    std::exit(1);
+  }
+
   return 0;
 }
 
 int32_t main(int32_t argc, char **argv) {
-  Heightmap *hm = NULL;
-  trix_result r;
-
   if (parseopts(argc, argv)) {
     fprintf(stderr, "option parsing failed\n");
     return 1;
   }
 
-  if ((hm = ReadHeightmap(CONFIG.input)) == NULL) {
-    return 1;
-  }
+  Heightmap hm{};
+  ReadHeightmap(CONFIG.input, &hm);
+  DumpHeightmap(hm);
 
-  if (CONFIG.heightmask) {
-    // point the mask at the heightmap
-    // instead of reading a separate image
-    mask = hm;
-  } else {
-    mask = NULL;
-  }
-
-  // mask file loaded only if heightmask isn't already assigned
-  if (CONFIG.mask != NULL && mask == NULL) {
-
-    if ((mask = ReadHeightmap(CONFIG.mask)) == NULL) {
-      return 1;
-    }
-
-    if ((mask->width != hm->width) || (mask->height != hm->height)) {
-      fprintf(stderr, "Mask dimensions do not match heightmap dimensions.\n");
-      fprintf(stderr, "Heightmap width: %u, height: %u\n", hm->width, hm->height);
-      return 1;
-    }
-  }
-
-  if ((r = HeightmapToSTL(hm)) != TRIX_OK) {
+  const trix_result r = HeightmapToSTL(hm);
+  if (r != TRIX_OK) {
     fprintf(stderr, "Heightmap conversion failed (%d)\n", (int32_t)r);
     return 1;
-  }
-
-  FreeHeightmap(&hm);
-
-  // free mask iff it is its own image
-  if (mask != NULL && !CONFIG.heightmask) {
-    FreeHeightmap(&mask);
   }
 
   return 0;

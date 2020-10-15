@@ -3,6 +3,8 @@
 
 #include <inttypes.h>
 #include <assert.h>
+#include <vector>
+#include <string>
 
 static_assert(sizeof(unsigned char) == sizeof(uint8_t), "whow");
 static_assert(sizeof(unsigned int) == sizeof(uint32_t), "wow");
@@ -14,15 +16,14 @@ typedef struct {
   uint64_t size;
 
   // z dimensions (range = max - min = relief)
-  uint8_t min, max, range;
+  float min, max, range;
 
   // raster with size pixels ranging in value from min to max
-  uint8_t *data;
+  std::vector<float> data;
 
 } Heightmap;
 
-Heightmap *ReadHeightmap(const char *path);
-void FreeHeightmap(Heightmap **hm);
-void DumpHeightmap(const Heightmap *hm);
+void ReadHeightmap(const std::string &path, Heightmap * const hm);
+void DumpHeightmap(const Heightmap &hm);
 
 #endif

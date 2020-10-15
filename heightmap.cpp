@@ -1,33 +1,31 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <iostream>
+#include <fstream>
+#include <cmath>
 
-//#include "stb_image.h"
 #include "heightmap.hpp"
 
-// placeholders for stb_image.h
-uint8_t *stbi_load(char const *filename, int32_t *x, int32_t *y, int32_t *comp, int32_t req_comp);
-unsigned char *stbi_failure_reason();
-unsigned char *stbi_image_free(uint8_t *);
-
-
 void ScanHeightmap(Heightmap *hm) {
-  uint64_t i;
-  uint8_t min, max;
-
-  if (hm == NULL || hm->data == NULL) {
+  if (hm == NULL) {
+    std::cout << "heightmap is null" << std::endl;
+    std::exit(1);
     return;
   }
 
-  min = 255;
-  max = 0;
+  float min = 1e22f;
+  float max = -1e22f;
 
-  for (i = 0; i < hm->size; i++) {
-    if (hm->data[i] < min) {
-      min = hm->data[i];
+  for (const float datum : hm->data) {
+    if (std::isnan(datum)) {
+        continue;
     }
-    if (hm->data[i] > max) {
-      max = hm->data[i];
+    if (datum < min) {
+      min = datum;
+    }
+    if (datum > max) {
+      max = datum;
     }
   }
 
@@ -36,53 +34,43 @@ void ScanHeightmap(Heightmap *hm) {
   hm->range = max - min;
 }
 
-// Returns pointer to Heightmap
-// Returns NULL on error
-Heightmap *ReadHeightmap(const char *path) {
-  int32_t width, height, depth;
-  uint8_t *data = stbi_load(path, &width, &height, &depth, 1);
-
-  if (data == NULL) {
-    fprintf(stderr, "%s\n", stbi_failure_reason());
-    return NULL;
+void ReadHeightmapData(const std::string &path, int64_t *nx, int64_t *ny, std::vector<float> *image) {
+  std::ifstream image_file(path, std::ios::in|std::ios::binary);
+  if (!image_file.is_open()) {
+    std::cout << "Failed to open image." << std::endl;
+    std::exit(1);
   }
 
-  Heightmap *hm;
-  if ((hm = (Heightmap *)malloc(sizeof(Heightmap))) == NULL) {
-    fprintf(stderr, "Cannot allocate memory for heightmap structure\n");
-    free(data);
-    return NULL;
+  image_file.read(reinterpret_cast<char*>(ny), 8);
+  image_file.read(reinterpret_cast<char*>(nx), 8);
+  std::cout << "Reading (" << *nx << " x " << *ny << ") doubles..." << std::endl;
+
+  image->resize((*nx) * (*ny), 0);
+  image_file.read(reinterpret_cast<char*>(image->data()), (*nx)*(*ny)*4);
+
+  if (!image_file) {
+    std::cout << "error: only " << image_file.gcount() << " bytes could be read" << std::endl;
+    std::exit(1);
   }
+  image_file.close();
+}
+
+void ReadHeightmap(const std::string &path, Heightmap * const hm) {
+  int64_t width, height;
+  ReadHeightmapData(path, &width, &height, &(hm->data));
 
   hm->width = (uint32_t)width;
   hm->height = (uint32_t)height;
   hm->size = (uint64_t)width * (uint64_t)height;
-  hm->data = data;
 
   ScanHeightmap(hm);
-
-  return hm;
 }
 
-void FreeHeightmap(Heightmap **hm) {
-
-  if (hm == NULL || *hm == NULL) {
-    return;
-  }
-
-  if ((*hm)->data != NULL) {
-    stbi_image_free((*hm)->data);
-  }
-
-  free(*hm);
-  *hm = NULL;
-}
-
-void DumpHeightmap(const Heightmap *hm) {
-  fprintf(stderr, "Width: %u\n", hm->width);
-  fprintf(stderr, "Height: %u\n", hm->height);
-  fprintf(stderr, "Size: %lu\n", hm->size);
-  fprintf(stderr, "Min: %d\n", hm->min);
-  fprintf(stderr, "Max: %d\n", hm->max);
-  fprintf(stderr, "Range: %d\n", hm->range);
+void DumpHeightmap(const Heightmap &hm) {
+  fprintf(stderr, "Width: %u\n", hm.width);
+  fprintf(stderr, "Height: %u\n", hm.height);
+  fprintf(stderr, "Size: %lu\n", hm.size);
+  fprintf(stderr, "Min: %f\n", hm.min);
+  fprintf(stderr, "Max: %f\n", hm.max);
+  fprintf(stderr, "Range: %f\n", hm.range);
 }
