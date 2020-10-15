@@ -1,8 +1,114 @@
-
 load("//:dem_names.bzl", "dem_names")
 load("@rules_python//python:defs.bzl", "py_binary")
 
+# Downlaod all the DEM zip files.
+[
+    genrule(
+        name = "dem_zip_{}".format(dem_name),
+        srcs = [],
+        outs = ["{}.zip".format(dem_name)],
+        cmd = """
+wget -q --directory-prefix=$(@D) https://storage.googleapis.com/state-of-utah-sgid-downloads/lidar/zion-np-2016/QL2/DEMs/{}.zip
+""".format(dem_name),
+    )
+    for dem_name in dem_names()
+]
+
+# Unzip all the DEMs.
+[
+    genrule(
+        name = "dem_img_{}".format(dem_name),
+        srcs = [":dem_zip_{}".format(dem_name)],
+        outs = [
+            "{}.img".format(dem_name),
+            "{}.img.aux.xml".format(dem_name),
+            "{}.img.xml".format(dem_name),
+        ],
+        cmd = """
+unzip -q $< -d $(@D)
+""".format(dem_name),
+    )
+    for dem_name in dem_names()
+]
+
+# Convert DEMs to raw pixel data.
 py_binary(
-    name = "main",
-    srcs = ["main.py"],
+    name = "dems_to_pixel_data",
+    srcs = ["dems_to_pixel_data.py"],
+    srcs_version = "PY3",
+    python_version = "PY3",
+)
+
+genrule(
+    name = "pixel_data",
+    tools = [":dems_to_pixel_data"],
+    outs = ["pixel_data.dat"],
+    srcs = [":{}.img".format(dem_name) for dem_name in dem_names()],
+    cmd = """
+$(location :dems_to_pixel_data) {} --output $@
+    """.format(",".join(["$(location {}.img)".format(dem_name) for dem_name in dem_names()])),
+)
+
+# Convert raw pixel data to a PNG image.
+py_binary(
+    name = "pixel_data_to_png",
+    srcs = ["pixel_data_to_png.py"],
+    srcs_version = "PY3",
+    python_version = "PY3",
+)
+
+genrule(
+    name = "pngs",
+    tools = [":pixel_data_to_png"],
+    outs = ["height_map.png", "mask.png"],
+    srcs = [":pixel_data.dat"],
+    cmd ="""
+$(location :pixel_data_to_png) $< --png_path $(location :height_map.png) --mask_path $(location :mask.png) --downsample 10
+du -hs $(location :height_map.png) $(location :mask.png)
+""",
+)
+
+# Turn the PNG image into an stl with hmstl.
+genrule(
+    name="stl",
+    tools = ["@hmstl//:hmstl"],
+    srcs = [":height_map.png", ":mask.png"],
+    outs = ["height_map.stl"],
+    cmd = """
+$(location @hmstl//:hmstl) -i $(location :height_map.png) -o $@ -m $(location :mask.png)
+du -hs $@
+""",
+)
+
+
+# Turn that PNG image into an stl with heightmap2stl.jar.
+genrule(
+    name="heightmap2stl",
+    outs = ["heightmap2stl.jar"],
+    cmd = """
+wget -O heightmap2stl.jar -q https://sourceforge.net/projects/heightmap2stl/files/latest/download
+cp heightmap2stl.jar $(@D)/heightmap2stl.jar
+""",
+)
+
+genrule(
+    name="stl2",
+    tools = [":heightmap2stl.jar"],
+    srcs = [":height_map.png"],
+    outs = ["height_map2.stl"],
+    tags = ["manual"], # this is the backup option, the other one works way faster (and better?)
+    cmd = """
+java -jar $(location heightmap2stl.jar) $(location :height_map.png) 256 1
+cp height_map2.stl $(@D)/height_map2.stl
+echo $(@D)/height_map2.stl
+""",
+)
+
+
+cxx_opts = ["-Wall", "-Wextra", "-Werror", "-std=c++17"]
+cc_binary(
+    name = "data_to_png",
+    srcs = ["data_to_png.cpp"],
+    copts = cxx_opts,
+    deps = ["@boost//:algorithm"]
 )
