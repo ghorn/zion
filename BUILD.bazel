@@ -106,9 +106,15 @@ echo $(@D)/height_map2.stl
 
 
 cxx_opts = ["-Wall", "-Wextra", "-Werror", "-std=c++17"]
+c_opts = ["-Wall", "-Wextra", "-Werror", "-std=c11"]
+c_opts = ["-Werror", "-std=c11"]
 cc_binary(
-    name = "data_to_png",
-    srcs = ["data_to_png.cpp"],
-    copts = cxx_opts,
-    deps = ["@boost//:algorithm"]
+    name = "hmstl",
+    srcs = [
+        "hmstl.c",
+        "heightmap.c",
+        "heightmap.h",
+    ],
+    copts = c_opts,
+    deps = ["@trix//:trix"],
 )
