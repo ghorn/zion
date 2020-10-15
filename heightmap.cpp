@@ -3,12 +3,12 @@
 #include <limits.h>
 
 //#include "stb_image.h"
-#include "heightmap.h"
+#include "heightmap.hpp"
 
 // placeholders for stb_image.h
 uint8_t *stbi_load(char const *filename, int32_t *x, int32_t *y, int32_t *comp, int32_t req_comp);
 unsigned char *stbi_failure_reason();
-unsigned char *stbi_image_free();
+unsigned char *stbi_image_free(uint8_t *);
 
 
 void ScanHeightmap(Heightmap *hm) {

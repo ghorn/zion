@@ -4,8 +4,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+extern "C" {
 #include <libtrix.h>
-#include "heightmap.h"
+}
+#include "heightmap.hpp"
 
 typedef struct {
   int32_t base; // boolean; output walls and bottom as well as terrain surface if true
@@ -300,26 +302,26 @@ trix_result Mesh(const Heightmap *hm, trix_mesh *mesh) {
 }
 
 // returns 0 on success, nonzero otherwise
-int32_t HeightmapToSTL(Heightmap *hm) {
+trix_result HeightmapToSTL(Heightmap *hm) {
   trix_result r;
   trix_mesh *mesh;
 
   if ((r = trixCreate(&mesh, "hmstl")) != TRIX_OK) {
-    return (int)r;
+    return r;
   }
 
   if ((r = Mesh(hm, mesh)) != TRIX_OK) {
-    return (int)r;
+    return r;
   }
 
   // writes to stdout if CONFIG.output is null, otherwise writes to path it names
   if ((r = trixWrite(mesh, CONFIG.output, (CONFIG.ascii ? TRIX_STL_ASCII : TRIX_STL_BINARY))) != TRIX_OK) {
-    return (int)r;
+    return r;
   }
 
   (void)trixRelease(&mesh);
 
-  return 0;
+  return TRIX_OK;
 }
 
 // https://www.gnu.org/software/libc/manual/html_node/Example-of-Getopt.html
@@ -459,7 +461,7 @@ int32_t main(int32_t argc, char **argv) {
   }
 
   if ((r = HeightmapToSTL(hm)) != TRIX_OK) {
-    fprintf(stderr, "Heightmap conversion failed (%d)\n", (int)r);
+    fprintf(stderr, "Heightmap conversion failed (%d)\n", (int32_t)r);
     return 1;
   }
 
