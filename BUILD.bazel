@@ -52,6 +52,26 @@ $(location :dems_to_pixel_data) {} --output $@
 # turn pixel data into binary blob of floats
 # Convert raw pixel data to a PNG image.
 py_binary(
+    name = "pixel_data_to_png",
+    srcs = ["pixel_data_to_png.py"],
+    srcs_version = "PY3",
+    python_version = "PY3",
+)
+
+genrule(
+    name = "png",
+    tools = [":pixel_data_to_png"],
+    outs = ["height_map.png"],
+    srcs = [":pixel_data.dat"],
+    cmd ="""
+$(location :pixel_data_to_png) $< $@ --downsample 20
+du -hs $(location :height_map.png)
+""",
+)
+
+# turn pixel data into binary blob of floats
+# Convert raw pixel data to a PNG image.
+py_binary(
     name = "pixel_data_to_floating_blob",
     srcs = ["pixel_data_to_floating_blob.py"],
     srcs_version = "PY3",
@@ -64,7 +84,7 @@ genrule(
     outs = ["floating_blob.dat"],
     srcs = [":pixel_data.dat"],
     cmd ="""
-$(location :pixel_data_to_floating_blob) $< $@ --downsample 40
+$(location :pixel_data_to_floating_blob) $< $@ --downsample 5
 du -hs $(location :floating_blob.dat)
 """,
 )

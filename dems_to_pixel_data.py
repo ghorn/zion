@@ -122,8 +122,6 @@ def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('dem_paths', help='Input DEM files, comma separated.')
   parser.add_argument('--output', required=True, help='Output path for pixel array.')
-  #parser.add_argument('--only_square_tiles', action='store_true', help='Ignore DEMs that are not 1500/1500 pix.')
-  #parser.add_argument('--no_missing_data', action='store_true', help='Ignore DEMs that have missing pixels.')
   flags = parser.parse_args()
 
   flags.dem_paths = flags.dem_paths.split(',')
@@ -131,11 +129,9 @@ def main():
   gdal.UseExceptions()
 
   print('loading DEMs...')
-  dems = [Dem(filename) for filename in flags.dem_paths]#[29:31]#[0:20]#[29:35]
-  #if flags.only_square_tiles:
+  dems = [Dem(filename) for filename in flags.dem_paths]
+  # The non-square titles have something funky going on. They are inserted in the wrong place.
   dems = [dem for dem in dems if dem.x_size() == 1500 and dem.y_size() == 1500]
-  #if flags.no_missing_data:
-  dems = [dem for dem in dems if np.count_nonzero(~np.isnan(dem.get_raster_band_array())) > 0]
 
   # Xgeo = GT(0) + Xpixel*GT(1) + Yline*GT(2)
   # Ygeo = GT(3) + Xpixel*GT(4) + Yline*GT(5)
