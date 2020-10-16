@@ -63,7 +63,7 @@ genrule(
     outs = ["height_map.png", "mask.png"],
     srcs = [":pixel_data.dat"],
     cmd ="""
-$(location :pixel_data_to_png) $< --png_path $(location :height_map.png) --mask_path $(location :mask.png) --downsample 40
+$(location :pixel_data_to_png) $< --png_path $(location :height_map.png) --mask_path $(location :mask.png) --downsample 20
 du -hs $(location :height_map.png) $(location :mask.png)
 """,
 )
@@ -125,12 +125,48 @@ du -hs $(location :floating_blob.dat)
 )
 
 cxx_opts = [
+    "-std=c++17",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-Wconversion",
+    "-Wcast-align",
+    "-Wdouble-promotion",
+    "-Wformat-security",
+    "-Winvalid-pch",
+    "-Wmissing-format-attribute",
+    "-Wnull-dereference",
+    "-Wpacked",
+    "-Wpointer-arith",
+    "-Wredundant-decls",
+    "-Wshadow",
+    "-Wsign-compare",
+    "-Wsign-conversion",
+    "-Wswitch-default",
+    "-Wswitch-enum",
+    "-Wundef",
+    "-Wunused",
+    "-Wwrite-strings",
+    "-Wduplicated-branches",
+    "-Wduplicated-cond",
+    "-Wlogical-op",
+    "-Wmisleading-indentation",
+    "-Wunused-but-set-parameter",
+    "-Wuseless-cast",
+    "-Winit-self",
+    "-Wnon-virtual-dtor",
+    #"-Wold-style-cast",
+    "-Woverloaded-virtual",
+]
+
+c_opts = [
     "-Wall",
     "-Wextra",
     "-Wconversion",
     "-Werror",
-    "-std=c++17",
+    "-std=c11",
 ]
+
 cc_binary(
     name = "hmstl",
     srcs = [
@@ -139,7 +175,16 @@ cc_binary(
         "heightmap.hpp",
     ],
     copts = cxx_opts,
-    deps = ["@trix//:trix"],
+    deps = [":libtrix"],
+)
+
+cc_library(
+    name = "libtrix",
+    srcs = [
+        "libtrix.c",
+        "libtrix.h",
+    ],
+    copts = c_opts,
 )
 
 # Turn the PNG image into an stl with hmstl.

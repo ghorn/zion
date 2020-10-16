@@ -7,7 +7,7 @@
 #include <iostream>
 
 extern "C" {
-#include <libtrix.h>
+#include "libtrix.h"
 }
 #include "heightmap.hpp"
 
