@@ -130,21 +130,6 @@ typedef trix_result (*trix_function)(trix_face *face, void *data);
 trix_result trixCreate(trix_mesh **new_mesh, const char *name);
 
 /*
- * trixRead
- * 
- * Allocate a new mesh read from an STL file.
- * Binary and ASCII STL files are supported.
- * 
- * new_mesh
- * 	A pointer to a trix_mesh pointer, which will be allocated
- * 	if the function succeeds.
- * src_path
- * 	Path to STL file to read.
- * 	If NULL, read from stdin.
- */
-trix_result trixRead(trix_mesh **new_mesh, const char *src_path);
-
-/*
  * trixWrite
  * 
  * Write a mesh to an STL file.
