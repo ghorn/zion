@@ -60,7 +60,7 @@ typedef struct {
  * as well as a normal vector (n). Applications that generate
  * meshes will typically do so by repeatedly defining a
  * trix_triangle and appending it to the mesh with trixAddTriangle.
- * 
+ *
  * The normal vector specifies the orientation of the triangle -
  * it points in the direction the triangle is facing. For many
  * applications, the normal vector may be a null vector (0 0 0)
@@ -106,9 +106,9 @@ typedef trix_result (*trix_function)(trix_face *face, void *data);
 
 /*
  * trixCreate
- * 
+ *
  * Allocate a new empty mesh.
- * 
+ *
  * new_mesh
  * 	A pointer to a trix_mesh pointer, which will be allocated
  * 	if the function succeeds.
@@ -120,9 +120,9 @@ trix_result trixCreate(trix_mesh **new_mesh, const char *name);
 
 /*
  * trixWrite
- * 
+ *
  * Write a mesh to an STL file.
- * 
+ *
  * mesh
  *  The mesh to write.
  * dst_path
@@ -135,10 +135,10 @@ trix_result trixWrite(const trix_mesh *mesh, const char *dst_path);
 
 /*
  * trixRelease
- * 
+ *
  * Free memory allocated for mesh.
  * Mesh no longer usable once released.
- * 
+ *
  * mesh
  * 	Pointer to the mesh to release.
  * 	mesh is set to NULL once released.
@@ -147,10 +147,10 @@ trix_result trixRelease(trix_mesh **mesh);
 
 /*
  * trixZeroNormals
- * 
+ *
  * Reset all face normals in mesh to zero (0 0 0).
  * Triangle vertices are not modified.
- * 
+ *
  * mesh
  * 	The mesh whose face normals should be zeroed.
  */
@@ -158,9 +158,9 @@ trix_result trixZeroNormals(trix_mesh *mesh);
 
 /*
  * trixUpdateNormals
- * 
+ *
  * Recalculate all face normals in mesh.
- * 
+ *
  * mesh
  * 	The mesh whose face normals should be updated.
  * order
@@ -171,9 +171,9 @@ trix_result trixUpdateNormals(trix_mesh *mesh, trix_winding_order order);
 
 /*
  * trixAddTriangle
- * 
+ *
  * Append a triangle to the mesh.
- * 
+ *
  * mesh
  * 	The mesh to which the triangle should be added.
  * triangle
@@ -183,9 +183,9 @@ trix_result trixAddTriangle(trix_mesh *mesh, const trix_triangle *triangle);
 
 /*
  * trixAddMesh
- * 
+ *
  * Add faces from one mesh to another.
- * 
+ *
  * mesh
  * 	The mesh to which the faces should be added.
  * src_mesh
@@ -196,9 +196,9 @@ trix_result trixAddMesh(trix_mesh *mesh, const trix_mesh *src_mesh);
 
 /*
  * trixApply
- * 
+ *
  * Apply an arbitrary function to each face in mesh.
- * 
+ *
  * mesh
  * 	The mesh to process.
  * func
@@ -210,5 +210,9 @@ trix_result trixAddMesh(trix_mesh *mesh, const trix_mesh *src_mesh);
  * 	May be NULL if not needed.
  */
 trix_result trixApply(const trix_mesh *mesh, trix_function func, void *data);
+
+
+
+void trixUpdateTriangleNormal(trix_triangle *triangle, trix_winding_order *order);
 
 #endif

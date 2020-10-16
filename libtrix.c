@@ -8,60 +8,60 @@
 trix_result trixApply(const trix_mesh *mesh, trix_function func, void *data) {
   trix_face *face, *next;
   trix_result rr;
-	
+
   if (mesh == NULL) {
     return TRIX_ERR_ARG;
   }
-	
+
   face = mesh->first;
   while (face != NULL) {
     next = face->next;
-		
+
     if ((rr = (func)(face, data)) != TRIX_OK) {
       return rr;
     }
-		
+
     face = next;
   }
-	
+
   return TRIX_OK;
 }
 
 static trix_result trixWriteHeaderBinary(FILE *stl_dst, const trix_mesh *mesh) {
   char header[80];
-	
+
   if (mesh == NULL) {
     return TRIX_ERR_ARG;
   }
-	
+
   // for now, just writing mesh name to header.
   // should check that name doesn't begin with "solid"
   strncpy(header, mesh->name, 80);
   header[79] = '\0';
-	
+
   if (fwrite(header, 80, 1, stl_dst) != 1) {
     return TRIX_ERR_FILE;
   }
-	
+
   if (fwrite(&mesh->facecount, 4, 1, stl_dst) != 1) {
     return TRIX_ERR_FILE;
   }
-	
+
   return TRIX_OK;
 }
 
 static trix_result trixWriteFaceBinary(FILE *stl_dst, trix_face *face) {
   unsigned short attributes = 0;
-	
+
   // triangle struct is 12 floats in sequence needed for output!
   if (fwrite(&face->triangle, 4, 12, stl_dst) != 12) {
     return TRIX_ERR_FILE;
   }
-	
+
   if (fwrite(&attributes, 2, 1, stl_dst) != 1) {
     return TRIX_ERR_FILE;
   }
-	
+
   return TRIX_OK;
 }
 
@@ -76,57 +76,57 @@ trix_result trixWrite(const trix_mesh *mesh, const char *dst_path) {
   trix_face *face;
   FILE *stl_dst;
   trix_result rr;
-	
+
   if (mesh == NULL) {
     return TRIX_ERR_ARG;
   }
-	
+
   if (dst_path == NULL) {
     stl_dst = stdout;
   } else if ((stl_dst = fopen(dst_path, "w")) == NULL) {
     return TRIX_ERR_FILE;
   }
-	
+
   if ((rr = trixWriteHeaderBinary(stl_dst, mesh)) != TRIX_OK) {
     trixCloseOutput(stl_dst);
     return rr;
   }
-	
+
   face = mesh->first;
   while (face != NULL) {
-		
+
     if ((rr = trixWriteFaceBinary(stl_dst, face)) != TRIX_OK) {
       trixCloseOutput(stl_dst);
       return rr;
     }
-		
+
     face = face->next;
   }
-	
+
   trixCloseOutput(stl_dst);
   return TRIX_OK;
 }
 
 trix_result trixAddTriangle(trix_mesh *mesh, const trix_triangle *triangle) {
   trix_face *face;
-	
+
   if (mesh == NULL) {
     return TRIX_ERR_ARG;
   }
-	
+
   // disallow adding more faces than we can count
   // (constrained by the 4 bytes available for facecount in binary STL)
   if (mesh->facecount == TRIX_FACE_MAX) {
     return TRIX_ERR_MAXFACECOUNT;
   }
-	
+
   if ((face = (trix_face *)malloc(sizeof(trix_face))) == NULL) {
     return TRIX_ERR_MEM;
   }
-	
+
   face->triangle = *triangle;
   face->next = NULL;
-		
+
   if (mesh->last == NULL) {
     // this is the first face
     mesh->first = face;
@@ -135,7 +135,7 @@ trix_result trixAddTriangle(trix_mesh *mesh, const trix_triangle *triangle) {
     mesh->last->next = face;
     mesh->last = face;
   }
-	
+
   mesh->facecount += 1;
   return TRIX_OK;
 }
@@ -150,22 +150,22 @@ trix_result trixAddMesh(trix_mesh *dst_mesh, const trix_mesh *src_mesh) {
 
 trix_result trixCreate(trix_mesh **new_mesh, const char *name) {
   trix_mesh *mesh;
-	
+
   if ((mesh = (trix_mesh *)malloc(sizeof(trix_mesh))) == NULL) {
     return TRIX_ERR_MEM;
   }
-	
+
   if (name == NULL) {
     strncpy(mesh->name, TRIX_MESH_NAME_DEFAULT, TRIX_MESH_NAME_MAX);
   } else {
     strncpy(mesh->name, name, TRIX_MESH_NAME_MAX);
     mesh->name[TRIX_MESH_NAME_MAX - 1] = '\0';
   }
-	
+
   mesh->first = NULL;
   mesh->last = NULL;
   mesh->facecount = 0;
-	
+
   *new_mesh = mesh;
   return TRIX_OK;
 }
@@ -174,11 +174,11 @@ static trix_result trixZeroFaceNormal(trix_face *face) {
   if (face == NULL) {
     return TRIX_ERR_ARG;
   }
-	
+
   face->triangle.n.x = 0;
   face->triangle.n.y = 0;
   face->triangle.n.z = 0;
-	
+
   return TRIX_OK;
 }
 
@@ -211,15 +211,15 @@ static void vector_unitvector(const trix_vertex *v, trix_vertex *result) {
 
 static trix_result trixUpdateFaceNormal(trix_face *face, trix_winding_order *order) {
   trix_vertex u, v, cp, n;
-	
+
   if (face == NULL) {
     return TRIX_ERR_ARG;
   }
-	
+
   // vectors u and v are triangle sides ab and bc
   vector_difference(&face->triangle.a, &face->triangle.b, &u);
   vector_difference(&face->triangle.b, &face->triangle.c, &v);
-	
+
   // the cross product of two vectors is perpendicular to both
   // since vectors u and v both lie in the plane of triangle abc,
   // the cross product is perpendicular to the triangle's surface
@@ -228,14 +228,43 @@ static trix_result trixUpdateFaceNormal(trix_face *face, trix_winding_order *ord
   } else {
     vector_crossproduct(&v, &u, &cp);
   }
-	
+
   // normalize the cross product to unit length to get surface normal n
   vector_unitvector(&cp, &n);
-	
+
   face->triangle.n.x = n.x;
   face->triangle.n.y = n.y;
   face->triangle.n.z = n.z;
   return TRIX_OK;
+}
+
+void trixUpdateTriangleNormal(trix_triangle *triangle, trix_winding_order *order) {
+  trix_vertex u, v, cp, n;
+
+  if (triangle == NULL) {
+    printf("Null triangle argument\n");
+    exit(1);
+  }
+
+  // vectors u and v are triangle sides ab and bc
+  vector_difference(&triangle->a, &triangle->b, &u);
+  vector_difference(&triangle->b, &triangle->c, &v);
+
+  // the cross product of two vectors is perpendicular to both
+  // since vectors u and v both lie in the plane of triangle abc,
+  // the cross product is perpendicular to the triangle's surface
+  if (order == NULL || *order == TRIX_WINDING_CCW) {
+    vector_crossproduct(&u, &v, &cp);
+  } else {
+    vector_crossproduct(&v, &u, &cp);
+  }
+
+  // normalize the cross product to unit length to get surface normal n
+  vector_unitvector(&cp, &n);
+
+  triangle->n.x = n.x;
+  triangle->n.y = n.y;
+  triangle->n.z = n.z;
 }
 
 trix_result trixUpdateNormals(trix_mesh *mesh, trix_winding_order order) {
@@ -244,18 +273,18 @@ trix_result trixUpdateNormals(trix_mesh *mesh, trix_winding_order order) {
 
 trix_result trixRelease(trix_mesh **mesh) {
   trix_face *face, *nextface;
-	
+
   if (mesh == NULL || *mesh == NULL) {
     return TRIX_ERR_ARG;
   }
-	
+
   face = (*mesh)->first;
   while (face != NULL) {
     nextface = face->next;
     free(face);
     face = nextface;
   }
-	
+
   free(*mesh);
   *mesh = NULL;
   return TRIX_OK;
