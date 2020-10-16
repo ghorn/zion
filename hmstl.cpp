@@ -38,15 +38,15 @@ static inline bool Masked(const Heightmap &hm, uint32_t x, uint32_t y) {
   return std::isnan(LookupIndex(hm, x, y));
 }
 
-static void WriteTriangle(FILE * const output, uint32_t *const facecount, trix_triangle *triangle) {
+static void WriteTriangle(FILE * const output, uint32_t *const triangle_count, trix_triangle *triangle) {
   unsigned short attributes = 0;
 
-  if (*facecount == TRIX_FACE_MAX) {
+  if (*triangle_count == TRIX_FACE_MAX) {
     printf("Too many triangles!!!\n");
     exit(1);
   }
 
-  (*facecount)++;
+  (*triangle_count)++;
 
   // Return if no file is open, it means we're just counting faces.
   if (output == NULL) {
@@ -57,7 +57,7 @@ static void WriteTriangle(FILE * const output, uint32_t *const facecount, trix_t
 
   // triangle struct is 12 floats in sequence needed for output!
   if (fwrite(triangle, 4, 12, output) != 12) {
-    printf("Error writing triangle %u\n", *facecount);
+    printf("Error writing triangle %u\n", *triangle_count);
     exit(1);
   }
 
@@ -68,7 +68,7 @@ static void WriteTriangle(FILE * const output, uint32_t *const facecount, trix_t
 }
 
 static void Wall(FILE * const output,
-                 uint32_t * const facecount,
+                 uint32_t * const triangle_count,
                  const trix_vertex &a,
                  const trix_vertex &b) {
   trix_vertex a0 = a;
@@ -83,8 +83,8 @@ static void Wall(FILE * const output,
   t2.a = b0;
   t2.b = a0;
   t2.c = a;
-  WriteTriangle(output, facecount, &t1);
-  WriteTriangle(output, facecount, &t2);
+  WriteTriangle(output, triangle_count, &t1);
+  WriteTriangle(output, triangle_count, &t2);
 }
 
 // returns average of all non-negative arguments.
@@ -110,8 +110,8 @@ static inline float hmzat(const Heightmap &hm, uint32_t x, uint32_t y) {
 }
 
 // given four vertices and a mesh, add two triangles representing the quad with given corners
-void Surface(FILE * const output,
-             uint32_t * const facecount,
+static void Surface(FILE * const output,
+             uint32_t * const triangle_count,
              const trix_vertex &v1,
              const trix_vertex &v2,
              const trix_vertex &v3,
@@ -126,11 +126,11 @@ void Surface(FILE * const output,
   j.b = v3;
   j.c = v2;
 
-  WriteTriangle(output, facecount, &i);
-  WriteTriangle(output, facecount, &j);
+  WriteTriangle(output, triangle_count, &i);
+  WriteTriangle(output, triangle_count, &j);
 }
 
-void Mesh(const Heightmap &hm, FILE *const output, uint32_t * const facecount) {
+static void Mesh(const Heightmap &hm, FILE *const output, uint32_t * const triangle_count) {
   uint32_t x, y;
   float az, bz, cz, dz, ez, fz, gz, hz;
   trix_vertex vp, v1, v2, v3, v4;
@@ -252,7 +252,7 @@ void Mesh(const Heightmap &hm, FILE *const output, uint32_t * const facecount) {
       v4.z = avgnonneg(hz, vp.z, fz, gz);
 
       // Upper surface
-      Surface(output, facecount, v1, v2, v3, v4);
+      Surface(output, triangle_count, v1, v2, v3, v4);
 
       // nothing left to do for this pixel unless we need to make walls
       if (!CONFIG.base) {
@@ -261,32 +261,32 @@ void Mesh(const Heightmap &hm, FILE *const output, uint32_t * const facecount) {
 
       // north wall (vertex 1 to 2)
       if (y == 0 || Masked(hm, x, y - 1)) {
-        Wall(output, facecount, v1, v2);
+        Wall(output, triangle_count, v1, v2);
       }
 
       // east wall (vertex 2 to 3)
       if (x + 1 == hm.width || Masked(hm, x + 1, y)) {
-        Wall(output, facecount, v2, v3);
+        Wall(output, triangle_count, v2, v3);
       }
 
       // south wall (vertex 3 to 4)
       if (y + 1 == hm.height || Masked(hm, x, y + 1)) {
-        Wall(output, facecount, v3, v4);
+        Wall(output, triangle_count, v3, v4);
       }
 
       // west wall (vertex 4 to 1)
       if (x == 0 || Masked(hm, x - 1, y)) {
-        Wall(output, facecount, v4, v1);
+        Wall(output, triangle_count, v4, v1);
       }
 
       // bottom surface - same as top, except with z = 0 and reverse winding
       v1.z = 0; v2.z = 0; v3.z = 0; v4.z = 0;
-      Surface(output, facecount, v4, v3, v2, v1);
+      Surface(output, triangle_count, v4, v3, v2, v1);
     }
   }
 }
 
-static void WriteHeaderBinary(FILE * const output, const uint32_t facecount) {
+static void WriteHeaderBinary(FILE * const output, const uint32_t triangle_count) {
   char header[80];
 
   // for now, just writing mesh name to header.
@@ -299,18 +299,18 @@ static void WriteHeaderBinary(FILE * const output, const uint32_t facecount) {
     exit(1);
   }
 
-  if (fwrite(&facecount, 4, 1, output) != 1) {
+  if (fwrite(&triangle_count, 4, 1, output) != 1) {
     printf("Error writing face count\n");
     exit(1);
   }
 }
 
-void HeightmapToSTL(const Heightmap &hm) {
+static void HeightmapToSTL(const Heightmap &hm) {
   // Traverse the heightmap and count the triangles.
-  uint32_t facecount = 0;
+  uint32_t triangle_count = 0;
   FILE *output = NULL;
-  Mesh(hm, output, &facecount);
-  printf("mesh has %.2e faces\n", (double)facecount);
+  Mesh(hm, output, &triangle_count);
+  printf("mesh has %.2e triangles\n", (double)triangle_count);
 
   // Open output file
   output = fopen(CONFIG.output, "w");
@@ -320,11 +320,11 @@ void HeightmapToSTL(const Heightmap &hm) {
   }
 
   // Write header.
-  WriteHeaderBinary(output, facecount);
+  WriteHeaderBinary(output, triangle_count);
 
   // Traverse the heightmap again but this time write it out to file.
-  facecount = 0;
-  Mesh(hm, output, &facecount);
+  triangle_count = 0;
+  Mesh(hm, output, &triangle_count);
 
   // Close output.
   fclose(output);
@@ -332,7 +332,7 @@ void HeightmapToSTL(const Heightmap &hm) {
 
 // https://www.gnu.org/software/libc/manual/html_node/Example-of-Getopt.html
 // returns 0 if options are parsed successfully; nonzero otherwise
-int32_t parseopts(int32_t argc, char **argv) {
+static int32_t parseopts(int32_t argc, char **argv) {
 
   int32_t c;
 
