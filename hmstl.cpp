@@ -296,7 +296,7 @@ trix_result HeightmapToSTL(const Heightmap &hm) {
 
   printf("mesh has %.2e faces\n", (double)mesh->facecount);
 
-  if ((r = trixWrite(mesh, CONFIG.output, TRIX_STL_BINARY)) != TRIX_OK) {
+  if ((r = trixWrite(mesh, CONFIG.output)) != TRIX_OK) {
     return r;
   }
 

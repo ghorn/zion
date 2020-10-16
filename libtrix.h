@@ -35,17 +35,6 @@ typedef enum {
 } trix_result;
 
 /*
- * Two STL file formats are in use: human-readable ASCII text
- * and more compact binary. When writing a mesh to file, you
- * must specify which format to use using one of these values.
- */
-typedef enum {
-  TRIX_STL_BINARY,
-  TRIX_STL_ASCII,
-  TRIX_STL_DEFAULT = TRIX_STL_BINARY
-} trix_stl_mode;
-
-/*
  * When recalculating the normal vectors of faces in a mesh,
  * face orientation is determined from the winding order of
  * the face triangle's vertices. By default, libtrix assumes
@@ -142,7 +131,7 @@ trix_result trixCreate(trix_mesh **new_mesh, const char *name);
  * mode
  * 	Whether to output ASCII or binary STL format.
  */
-trix_result trixWrite(const trix_mesh *mesh, const char *dst_path, trix_stl_mode mode);
+trix_result trixWrite(const trix_mesh *mesh, const char *dst_path);
 
 /*
  * trixRelease
