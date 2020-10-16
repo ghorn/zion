@@ -37,20 +37,20 @@ static inline bool Masked(const Heightmap &hm, uint32_t x, uint32_t y) {
   return std::isnan(LookupIndex(hm, x, y));
 }
 
-static trix_result Wall(trix_mesh *mesh, const trix_vertex *a, const trix_vertex *b) {
-  trix_vertex a0 = *a;
-  trix_vertex b0 = *b;
+static trix_result Wall(trix_mesh *mesh, const trix_vertex &a, const trix_vertex &b) {
+  trix_vertex a0 = a;
+  trix_vertex b0 = b;
   trix_triangle t1;
   trix_triangle t2;
   trix_result r;
   a0.z = 0;
   b0.z = 0;
-  t1.a = *a;
-  t1.b = *b;
+  t1.a = a;
+  t1.b = b;
   t1.c = b0;
   t2.a = b0;
   t2.b = a0;
-  t2.c = *a;
+  t2.c = a;
   if ((r = trixAddTriangle(mesh, &t1)) != TRIX_OK) {
     return r;
   }
@@ -63,18 +63,18 @@ static trix_result Wall(trix_mesh *mesh, const trix_vertex *a, const trix_vertex
 // returns average of all non-negative arguments.
 // If any argument is negative, it is not included in the average.
 // argument zp will always be nonnegative.
-static float avgnonneg(float zp, float z1, float z2, float z3) {
-  float sum = zp;
-  float z[3] = {z1, z2, z3};
-  int32_t i, n = 1;
-
-  for (i = 0; i < 3; i++) {
+static float avgnonneg(const float z0, const float z1, const float z2, const float z3) {
+  float sum = 0;
+  const float z[4] = {z0, z1, z2, z3};
+  int32_t n = 0;
+  for (int32_t i = 0; i < 4; i++) {
     if (z[i] >= 0) {
       sum += z[i];
       n++;
     }
   }
 
+  assert(n > 0);
   return sum / (float)n;
 }
 
@@ -83,17 +83,17 @@ static inline float hmzat(const Heightmap &hm, uint32_t x, uint32_t y) {
 }
 
 // given four vertices and a mesh, add two triangles representing the quad with given corners
-trix_result Surface(trix_mesh *mesh, const trix_vertex *v1, const trix_vertex *v2, const trix_vertex *v3, const trix_vertex *v4) {
+trix_result Surface(trix_mesh *mesh, const trix_vertex &v1, const trix_vertex &v2, const trix_vertex &v3, const trix_vertex &v4) {
   trix_triangle i, j;
   trix_result r;
 
-  i.a = *v4;
-  i.b = *v2;
-  i.c = *v1;
+  i.a = v4;
+  i.b = v2;
+  i.c = v1;
 
-  j.a = *v4;
-  j.b = *v3;
-  j.c = *v2;
+  j.a = v4;
+  j.b = v3;
+  j.c = v2;
 
   if ((r = trixAddTriangle(mesh, &i)) != TRIX_OK) {
     return r;
@@ -211,12 +211,12 @@ trix_result Mesh(const Heightmap &hm, trix_mesh *mesh) {
       // Vertex 1
       v1.x = (float)x - 0.5f;
       v1.y = ((float)hm.height - ((float)y - 0.5f));
-      v1.z = avgnonneg(vp.z, az, bz, hz);
+      v1.z = avgnonneg(az, bz, vp.z, hz);
 
       // Vertex 2
       v2.x = (float)x + 0.5f;
       v2.y = v1.y;
-      v2.z = avgnonneg(vp.z, bz, cz, dz);
+      v2.z = avgnonneg(bz, cz, dz, vp.z);
 
       // Vertex 3
       v3.x = v2.x;
@@ -226,10 +226,10 @@ trix_result Mesh(const Heightmap &hm, trix_mesh *mesh) {
       // Vertex 4
       v4.x = v1.x;
       v4.y = v3.y;
-      v4.z = avgnonneg(vp.z, hz, fz, gz);
+      v4.z = avgnonneg(hz, vp.z, fz, gz);
 
       // Upper surface
-      if ((r = Surface(mesh, &v1, &v2, &v3, &v4)) != TRIX_OK) {
+      if ((r = Surface(mesh, v1, v2, v3, v4)) != TRIX_OK) {
         return r;
       }
 
@@ -240,35 +240,35 @@ trix_result Mesh(const Heightmap &hm, trix_mesh *mesh) {
 
       // north wall (vertex 1 to 2)
       if (y == 0 || Masked(hm, x, y - 1)) {
-        if ((r = Wall(mesh, &v1, &v2)) != TRIX_OK) {
+        if ((r = Wall(mesh, v1, v2)) != TRIX_OK) {
           return r;
         }
       }
 
       // east wall (vertex 2 to 3)
       if (x + 1 == hm.width || Masked(hm, x + 1, y)) {
-        if ((r = Wall(mesh, &v2, &v3)) != TRIX_OK) {
+        if ((r = Wall(mesh, v2, v3)) != TRIX_OK) {
           return r;
         }
       }
 
       // south wall (vertex 3 to 4)
       if (y + 1 == hm.height || Masked(hm, x, y + 1)) {
-        if ((r = Wall(mesh, &v3, &v4)) != TRIX_OK) {
+        if ((r = Wall(mesh, v3, v4)) != TRIX_OK) {
           return r;
         }
       }
 
       // west wall (vertex 4 to 1)
       if (x == 0 || Masked(hm, x - 1, y)) {
-        if ((r = Wall(mesh, &v4, &v1)) != TRIX_OK) {
+        if ((r = Wall(mesh, v4, v1)) != TRIX_OK) {
           return r;
         }
       }
 
       // bottom surface - same as top, except with z = 0 and reverse winding
       v1.z = 0; v2.z = 0; v3.z = 0; v4.z = 0;
-      if ((r = Surface(mesh, &v4, &v3, &v2, &v1)) != TRIX_OK) {
+      if ((r = Surface(mesh, v4, v3, v2, v1)) != TRIX_OK) {
         return r;
       }
     }
@@ -290,7 +290,8 @@ trix_result HeightmapToSTL(const Heightmap &hm) {
     return r;
   }
 
-  // writes to stdout if CONFIG.output is null, otherwise writes to path it names
+  printf("mesh has %.2e faces\n", (double)mesh->facecount);
+
   if ((r = trixWrite(mesh, CONFIG.output, TRIX_STL_BINARY)) != TRIX_OK) {
     return r;
   }

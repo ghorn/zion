@@ -45,7 +45,7 @@ void ReadHeightmapData(const std::string &path, int64_t *nx, int64_t *ny, std::v
   image_file.read(reinterpret_cast<char*>(nx), 8);
   std::cout << "Reading (" << *nx << " x " << *ny << ") doubles..." << std::endl;
 
-  image->resize((*nx) * (*ny), 0);
+  image->resize(static_cast<uint64_t>(*nx) * static_cast<uint64_t>(*ny), 0);
   image_file.read(reinterpret_cast<char*>(image->data()), (*nx)*(*ny)*4);
 
   if (!image_file) {
@@ -69,8 +69,8 @@ void ReadHeightmap(const std::string &path, Heightmap * const hm) {
 void DumpHeightmap(const Heightmap &hm) {
   fprintf(stderr, "Width: %u\n", hm.width);
   fprintf(stderr, "Height: %u\n", hm.height);
-  fprintf(stderr, "Size: %lu\n", hm.size);
-  fprintf(stderr, "Min: %f\n", hm.min);
-  fprintf(stderr, "Max: %f\n", hm.max);
-  fprintf(stderr, "Range: %f\n", hm.range);
+  fprintf(stderr, "Pixels: %.2e\n", (double)hm.size);
+  fprintf(stderr, "Min: %f\n", (double)hm.min);
+  fprintf(stderr, "Max: %f\n", (double)hm.max);
+  fprintf(stderr, "Range: %f\n", (double)hm.range);
 }
