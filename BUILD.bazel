@@ -159,10 +159,10 @@ cc_library(
 
 # Turn the PNG image into an stl with hmstl.
 genrule(
-    name="stl_from_float",
+    name="stl",
     tools = [":hmstl"],
     srcs = [":floating_blob.dat"],
-    outs = ["height_map_from_float.stl"],
+    outs = ["height_map.stl"],
     cmd = """
 $(location :hmstl) -i $(location :floating_blob.dat) -o $@
 du -hs $@

@@ -28,7 +28,7 @@ Settings CONFIG = {
 };
 
 static inline float LookupIndex(const Heightmap &hm, uint32_t x, uint32_t y) {
-  return hm.data[y * hm.width + x];
+  return hm.data[(uint64_t)y * hm.width + (uint64_t)x];
 }
 
 // If a mask is defined, only portions of the heightmap that are visible through the mask are output.
@@ -83,9 +83,12 @@ static inline float hmzat(const Heightmap &hm, uint32_t x, uint32_t y) {
 }
 
 // given four vertices and a mesh, add two triangles representing the quad with given corners
-trix_result Surface(trix_mesh *mesh, const trix_vertex &v1, const trix_vertex &v2, const trix_vertex &v3, const trix_vertex &v4) {
+trix_result Surface(trix_mesh *mesh,
+                    const trix_vertex &v1,
+                    const trix_vertex &v2,
+                    const trix_vertex &v3,
+                    const trix_vertex &v4) {
   trix_triangle i, j;
-  trix_result r;
 
   i.a = v4;
   i.b = v2;
@@ -95,6 +98,7 @@ trix_result Surface(trix_mesh *mesh, const trix_vertex &v1, const trix_vertex &v
   j.b = v3;
   j.c = v2;
 
+  trix_result r;
   if ((r = trixAddTriangle(mesh, &i)) != TRIX_OK) {
     return r;
   }

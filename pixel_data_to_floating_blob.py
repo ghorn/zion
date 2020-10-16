@@ -48,6 +48,7 @@ def main():
   t0 = time.time()
   save_image(flags.output_path, heightmap_data)
   print('Wrote heightmap in {} seconds to {}'.format(time.time() - t0, flags.output_path))
+  print('Dimensions {}, num elements {}'.format(str(heightmap_data.shape), heightmap_data.size))
 
 if __name__=='__main__':
   main()
