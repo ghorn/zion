@@ -177,7 +177,7 @@ cc_library(
     copts = c_opts,
 )
 
-# Turn the PNG image into an stl with hmstl.
+# Turn the binary blob into an stl with hmstl.
 genrule(
     name="stl",
     tools = [":hmstl"],
@@ -185,6 +185,30 @@ genrule(
     outs = ["height_map.stl"],
     cmd = """
 $(location :hmstl) -i $(location :floating_blob.dat) -o $@
+du -hs $@
+""",
+)
+
+
+# PLY format
+cc_binary(
+    name = "hmply",
+    srcs = [
+        "hmply.cpp",
+        "heightmap.cpp",
+        "heightmap.hpp",
+    ],
+    copts = cxx_opts,
+)
+
+# Turn the blob into a ply with hmply.
+genrule(
+    name="ply",
+    tools = [":hmply"],
+    srcs = [":floating_blob.dat"],
+    outs = ["height_map.ply"],
+    cmd = """
+$(location :hmply) -i $(location :floating_blob.dat) -o $@
 du -hs $@
 """,
 )
