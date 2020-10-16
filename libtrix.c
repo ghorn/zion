@@ -104,10 +104,10 @@ static trix_result trixWriteFaceASCII(FILE *stl_dst, trix_face *face) {
               "vertex %f %f %f\n"
               "endloop\n"
               "endfacet\n",
-              face->triangle.n.x, face->triangle.n.y, face->triangle.n.z,
-              face->triangle.a.x, face->triangle.a.y, face->triangle.a.z,
-              face->triangle.b.x, face->triangle.b.y, face->triangle.b.z,
-              face->triangle.c.x, face->triangle.c.y, face->triangle.c.z) < 0) {
+              (double)face->triangle.n.x, (double)face->triangle.n.y, (double)face->triangle.n.z,
+              (double)face->triangle.a.x, (double)face->triangle.a.y, (double)face->triangle.a.z,
+              (double)face->triangle.b.x, (double)face->triangle.b.y, (double)face->triangle.b.z,
+              (double)face->triangle.c.x, (double)face->triangle.c.y, (double)face->triangle.c.z) < 0) {
     return TRIX_ERR_FILE;
   }
 	
