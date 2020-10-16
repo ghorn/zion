@@ -130,7 +130,7 @@ void Surface(FILE * const output,
   WriteTriangle(output, facecount, &j);
 }
 
-trix_result Mesh(const Heightmap &hm, FILE *const output, uint32_t * const facecount) {
+void Mesh(const Heightmap &hm, FILE *const output, uint32_t * const facecount) {
   uint32_t x, y;
   float az, bz, cz, dz, ez, fz, gz, hz;
   trix_vertex vp, v1, v2, v3, v4;
@@ -284,8 +284,6 @@ trix_result Mesh(const Heightmap &hm, FILE *const output, uint32_t * const facec
       Surface(output, facecount, v4, v3, v2, v1);
     }
   }
-
-  return TRIX_OK;
 }
 
 static void WriteHeaderBinary(FILE * const output, const uint32_t facecount) {

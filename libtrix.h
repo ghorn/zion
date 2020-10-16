@@ -4,14 +4,6 @@
 #include <stdint.h>
 
 /*
- * The mesh name is used as the solid model identifier for
- * ASCII STL output and is written to the header section
- * of binary output. Length constrained by 80 byte header.
- */
-#define TRIX_MESH_NAME_MAX 80
-#define TRIX_MESH_NAME_DEFAULT "libtrix"
-
-/*
  * The maximum number of faces allowed in a mesh.
  * This value is constrained by the four bytes available
  * to indicate the number of faces in a binary STL file.
@@ -20,19 +12,6 @@
  * (This value is also given in stdint.h as UINT32_MAX.)
  */
 #define TRIX_FACE_MAX 4294967295U
-
-/*
- * Every libtrix function returns a trix_result status code.
- * Any value other than TRIX_OK indicates an error condition;
- * check for success for testing whether result == TRIX_OK.
- */
-typedef enum {
-  TRIX_OK,
-  TRIX_ERR_ARG,
-  TRIX_ERR_FILE,
-  TRIX_ERR_MEM,
-  TRIX_ERR_MAXFACECOUNT
-} trix_result;
 
 /*
  * When recalculating the normal vectors of faces in a mesh,
@@ -70,148 +49,6 @@ typedef struct {
 typedef struct {
   trix_vertex n, a, b, c;
 } trix_triangle;
-
-/*
- * Every face in an STL mesh is a triangle. The trix_face
- * structure is used to store an individual trix_triangle in
- * the context of the set of triangles that comprise a mesh.
- * It packages a trix_triangle as a node in a linked list.
- */
-struct trix_face_node {
-  trix_triangle triangle;
-  struct trix_face_node *next;
-};
-typedef struct trix_face_node trix_face;
-
-/*
- * The trix_mesh is the main libtrix data structure. The mesh
- * is stored as a linked list of faces (no order is implied).
- * Applications are advised not to modify a trix_mesh directly,
- * as the face count and mesh data are maintained by functions.
- */
-typedef struct {
-  char name[TRIX_MESH_NAME_MAX];
-  trix_face *first, *last;
-  uint32_t facecount;
-} trix_mesh;
-
-/*
- * Functions conforming to the trix_function signature can be
- * invoked with every face in a mesh using the trixApply function.
- * A trix_function is passed two parameters: a pointer to the
- * current face, and an arbitrary application-defined data pointer
- * passed to trixApply (which may be NULL).
- */
-typedef trix_result (*trix_function)(trix_face *face, void *data);
-
-/*
- * trixCreate
- *
- * Allocate a new empty mesh.
- *
- * new_mesh
- * 	A pointer to a trix_mesh pointer, which will be allocated
- * 	if the function succeeds.
- * name
- * 	A name to associate with the mesh.
- * 	If NULL, the default libtrix mesh name will be used.
- */
-trix_result trixCreate(trix_mesh **new_mesh, const char *name);
-
-/*
- * trixWrite
- *
- * Write a mesh to an STL file.
- *
- * mesh
- *  The mesh to write.
- * dst_path
- * 	Path to STL file to write.
- * 	If NULL, write to stdout.
- * mode
- * 	Whether to output ASCII or binary STL format.
- */
-trix_result trixWrite(const trix_mesh *mesh, const char *dst_path);
-
-/*
- * trixRelease
- *
- * Free memory allocated for mesh.
- * Mesh no longer usable once released.
- *
- * mesh
- * 	Pointer to the mesh to release.
- * 	mesh is set to NULL once released.
- */
-trix_result trixRelease(trix_mesh **mesh);
-
-/*
- * trixZeroNormals
- *
- * Reset all face normals in mesh to zero (0 0 0).
- * Triangle vertices are not modified.
- *
- * mesh
- * 	The mesh whose face normals should be zeroed.
- */
-trix_result trixZeroNormals(trix_mesh *mesh);
-
-/*
- * trixUpdateNormals
- *
- * Recalculate all face normals in mesh.
- *
- * mesh
- * 	The mesh whose face normals should be updated.
- * order
- * 	Infer face orientation from specified vertex winding order,
- * 	as observed from the "outer" side of each face.
- */
-trix_result trixUpdateNormals(trix_mesh *mesh, trix_winding_order order);
-
-/*
- * trixAddTriangle
- *
- * Append a triangle to the mesh.
- *
- * mesh
- * 	The mesh to which the triangle should be added.
- * triangle
- * 	A pointer to the triangle to add to the mesh.
- */
-trix_result trixAddTriangle(trix_mesh *mesh, const trix_triangle *triangle);
-
-/*
- * trixAddMesh
- *
- * Add faces from one mesh to another.
- *
- * mesh
- * 	The mesh to which the faces should be added.
- * src_mesh
- * 	The mesh whose faces should be added.
- * 	src_mesh is not modified.
- */
-trix_result trixAddMesh(trix_mesh *mesh, const trix_mesh *src_mesh);
-
-/*
- * trixApply
- *
- * Apply an arbitrary function to each face in mesh.
- *
- * mesh
- * 	The mesh to process.
- * func
- * 	A pointer to a function matching the trix_function signature.
- * 	func will be invoked for each face in mesh.
- * 	Each invocation will be passed a pointer to the current face.
- * data
- * 	A pointer to arbitrary data. Passed to each invocation of func.
- * 	May be NULL if not needed.
- */
-trix_result trixApply(const trix_mesh *mesh, trix_function func, void *data);
-
-
 
 void trixUpdateTriangleNormal(trix_triangle *triangle, trix_winding_order *order);
 
