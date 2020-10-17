@@ -49,7 +49,6 @@ $(location :dems_to_pixel_data) {} --output $@
     """.format(",".join(["$(location {}.img)".format(dem_name) for dem_name in dem_names()])),
 )
 
-# turn pixel data into binary blob of floats
 # Convert raw pixel data to a PNG image.
 py_binary(
     name = "pixel_data_to_png",
@@ -64,13 +63,12 @@ genrule(
     outs = ["height_map.png"],
     srcs = [":pixel_data.dat"],
     cmd ="""
-$(location :pixel_data_to_png) $< $@ --downsample 20
+$(location :pixel_data_to_png) $< $@ --target_dimension 1000
 du -hs $(location :height_map.png)
 """,
 )
 
 # turn pixel data into binary blob of floats
-# Convert raw pixel data to a PNG image.
 py_binary(
     name = "pixel_data_to_floating_blob",
     srcs = ["pixel_data_to_floating_blob.py"],

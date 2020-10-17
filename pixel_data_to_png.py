@@ -9,7 +9,7 @@ def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('height_map_path', help='Input height map data path.')
   parser.add_argument('png_path', help='Output path for height map png.')
-  parser.add_argument('--downsample', type=int, help='Optional downsample factor.')
+  parser.add_argument('--target_dimension', type=int, help='Target size of smallest dimension (length or width).')
   flags = parser.parse_args()
 
   # load data
@@ -19,10 +19,14 @@ def main():
   print('loaded master image in {} seconds'.format(time.time() - t0))
 
   # downsample
-  if flags.downsample:
+  if flags.target_dimension:
     t0 = time.time()
-    heightmap_data = heightmap_data[::flags.downsample, ::flags.downsample] / flags.downsample
+    min_shape = np.min(heightmap_data.shape)
+    decimation = int(min_shape / flags.target_dimension)
+    old_shape = heightmap_data.shape
+    heightmap_data = heightmap_data[::decimation, ::decimation]
     print('decimated in {} seconds'.format(time.time() - t0))
+    print('old shape: {}, new shape: {}'.format(str(old_shape), str(heightmap_data.shape)))
 
   # normalize image height
   t0 = time.time()
