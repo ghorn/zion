@@ -1,13 +1,5 @@
 load("//dems:dem_names.bzl", "dem_names")
 
-#genrule(
-#    name = "meshlab_server",
-#    outs = ["MeshLabServer2020.09-linux.AppImage"],
-#    cmd = """
-#wget -q --directory-prefix=$(@D) https://github.com/cnr-isti-vclab/meshlab/releases/download/Meshlab-2020.09/MeshLabServer2020.09-linux.AppImage
-#"""
-#)
-
 genrule(
     name = "pixel_data",
     tools = ["//src:dems_to_pixel_data"],
@@ -52,4 +44,37 @@ genrule(
 time $(location //src:hmply) -i $< -o $@
 du -hs $@
 """.format(decimation),
+)
+
+# Simplify the ply with meshlab.
+genrule(
+    name="simplified_ply",
+    tools = ["//meshlab:meshlab_server"],
+    srcs = [
+        "height_map_decim{}.ply".format(decimation),
+        "simplify.mlx",
+    ],
+    outs = ["height_map_decim{}_simplified.ply".format(decimation)],
+    cmd = """
+DISPLAY=:0.0 time $(location //meshlab:meshlab_server) -i $(location height_map_decim{}.ply) -o $@ -s $(location simplify.mlx)
+du -hs $@
+""".format(decimation),
+    local=True,
+    tags = ["manual"],
+)
+
+# Simplify the ply with meshlab.
+genrule(
+    name="stl",
+    tools = ["//meshlab:meshlab_server"],
+    srcs = [
+        "height_map_decim{}.ply".format(decimation),
+    ],
+    outs = ["height_map_decim{}.stl".format(decimation)],
+    cmd = """
+DISPLAY=:0.0 $(location //meshlab:meshlab_server) -i $< -o $@
+du -hs $@
+""".format(decimation),
+    local=True,
+    tags = ["manual"],
 )

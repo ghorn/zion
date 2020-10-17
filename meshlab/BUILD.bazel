@@ -1,0 +1,8 @@
+genrule(
+    name = "meshlab_server",
+    outs = ["MeshLabServer2020.09-linux.AppImage"],
+    cmd = """
+wget -q --directory-prefix=$(@D) https://github.com/cnr-isti-vclab/meshlab/releases/download/Meshlab-2020.09/MeshLabServer2020.09-linux.AppImage
+""",
+    visibility = ["//visibility:public"],
+)
