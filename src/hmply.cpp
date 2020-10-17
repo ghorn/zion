@@ -9,24 +9,9 @@
 #include <iostream>
 
 #include "heightmap.hpp"
+#include "parse_args.hpp"
 
 #define TRIX_FACE_MAX 4294967295U
-
-typedef struct {
-  int32_t base; // boolean; output walls and bottom as well as terrain surface if true
-  char *input; // path to input file; use stdin if NULL
-  char *output; // path to output file; use stdout if NULL
-  float zscale; // scaling factor applied to raw Z values
-  float baseheight; // height in STL units of base below lowest terrain (technically, offset added to scaled Z values)
-} Settings;
-
-Settings CONFIG = {
-  1,    // generate base (walls and bottom)
-  NULL, // read from stdin
-  NULL, // write to stdout
-  1.0,  // no z scaling (use raw heightmap values)
-  1.0   // minimum base thickness of one unit
-};
 
 template <class T>
 inline void hash_combine(std::size_t & seed, const T & v)
@@ -235,8 +220,8 @@ static float avgnonneg(const float z0, const float z1, const float z2, const flo
   return sum / (float)n;
 }
 
-static inline float hmzat(const Heightmap &hm, uint32_t x, uint32_t y) {
-  return CONFIG.baseheight + CONFIG.zscale * LookupIndex(hm, x, y);
+static inline float hmzat(const Heightmap &hm, uint32_t x, uint32_t y, const Settings &config) {
+  return config.baseheight + config.zscale * LookupIndex(hm, x, y);
 }
 
 // given four vertices and a mesh, add two triangles representing the quad with given corners
@@ -266,7 +251,8 @@ static void Mesh(const Heightmap &hm,
                  const Pass pass,
                  FILE *const output,
                  vertex_map_t * const vmap, 
-                 uint32_t * const triangle_count) {
+                 uint32_t * const triangle_count,
+                 const Settings &config) {
   uint32_t x, y;
   float az, bz, cz, dz, ez, fz, gz, hz;
   vertex_t vp, v1, v2, v3, v4;
@@ -317,55 +303,55 @@ static void Mesh(const Heightmap &hm,
       if (x == 0 || y == 0) {
         az = -1;
       } else {
-        az = hmzat(hm, x - 1, y - 1);
+        az = hmzat(hm, x - 1, y - 1, config);
       }
 
       if (y == 0) {
         bz = -1;
       } else {
-        bz = hmzat(hm, x, y - 1);
+        bz = hmzat(hm, x, y - 1, config);
       }
 
       if (y == 0 || x + 1 == hm.width) {
         cz = -1;
       } else {
-        cz = hmzat(hm, x + 1, y - 1);
+        cz = hmzat(hm, x + 1, y - 1, config);
       }
 
       if (x + 1 == hm.width) {
         dz = -1;
       } else {
-        dz = hmzat(hm, x + 1, y);
+        dz = hmzat(hm, x + 1, y, config);
       }
 
       if (x + 1 == hm.width || y + 1 == hm.height) {
         ez = -1;
       } else {
-        ez = hmzat(hm, x + 1, y + 1);
+        ez = hmzat(hm, x + 1, y + 1, config);
       }
 
       if (y + 1 == hm.height) {
         fz = -1;
       } else {
-        fz = hmzat(hm, x, y + 1);
+        fz = hmzat(hm, x, y + 1, config);
       }
 
       if (y + 1 == hm.height || x == 0) {
         gz = -1;
       } else {
-        gz = hmzat(hm, x - 1, y + 1);
+        gz = hmzat(hm, x - 1, y + 1, config);
       }
 
       if (x == 0) {
         hz = -1;
       } else {
-        hz = hmzat(hm, x - 1, y);
+        hz = hmzat(hm, x - 1, y, config);
       }
 
       // pixel vertex
       vp.x = (float)x;
       vp.y = (float)(hm.height - y);
-      vp.z = hmzat(hm, x, y);
+      vp.z = hmzat(hm, x, y, config);
 
       // Vertex 1
       v1.x = (float)x - 0.5f;
@@ -391,7 +377,7 @@ static void Mesh(const Heightmap &hm,
       Surface(pass, output, vmap, triangle_count, v1, v2, v3, v4);
 
       // nothing left to do for this pixel unless we need to make walls
-      if (!CONFIG.base) {
+      if (!config.base) {
         continue;
       }
 
@@ -434,17 +420,17 @@ static void WriteHeader(FILE * const output, const uint32_t vertex_count, const 
   fprintf(output, "end_header\r\n");
 }
 
-static void HeightmapToPLY(const Heightmap &hm) {
+static void HeightmapToPLY(const Heightmap &hm, const Settings &config) {
   // Traverse the heightmap and count the triangles.
   uint32_t triangle_count = 0;
   FILE *output = NULL;
   vertex_map_t vmap;
-  Mesh(hm, Pass::kCountVerticesAndTriangles, output, &vmap, &triangle_count);
+  Mesh(hm, Pass::kCountVerticesAndTriangles, output, &vmap, &triangle_count, config);
   printf("mesh has %.2e triangles and %.2e vertices\n",
          (double)triangle_count, (double)vmap.size());
 
   // Open output file
-  output = fopen(CONFIG.output, "w");
+  output = fopen(config.output, "w");
   if (output == NULL) {
     printf("Error opening output file\n");
     exit(1);
@@ -455,111 +441,20 @@ static void HeightmapToPLY(const Heightmap &hm) {
 
   // Traverse the heightmap again but this time write it out to file.
   vmap.clear();
-  Mesh(hm, Pass::kVertexList, output, &vmap, &triangle_count);
-  Mesh(hm, Pass::kTriangleList, output, &vmap, &triangle_count);
+  Mesh(hm, Pass::kVertexList, output, &vmap, &triangle_count, config);
+  Mesh(hm, Pass::kTriangleList, output, &vmap, &triangle_count, config);
 
   // Close output.
   fclose(output);
 }
 
-// https://www.gnu.org/software/libc/manual/html_node/Example-of-Getopt.html
-// returns 0 if options are parsed successfully; nonzero otherwise
-static int32_t parseopts(int32_t argc, char **argv) {
-
-  int32_t c;
-
-  // suppress automatic error messages generated by getopt
-  opterr = 0;
-
-  while ((c = getopt(argc, argv, "az:b:o:i:m:t:rhs")) != -1) {
-    switch (c) {
-    case 'z':
-      // Z scale (heightmap value units relative to XY)
-      if (sscanf(optarg, "%20f", &CONFIG.zscale) != 1 || CONFIG.zscale <= 0) {
-        fprintf(stderr, "Z scale must be a number greater than 0.\n");
-        return 1;
-      }
-      break;
-    case 'b':
-      // Base height (default 1.0 units)
-      if (sscanf(optarg, "%20f", &CONFIG.baseheight) != 1 || CONFIG.baseheight < 1) {
-        fprintf(stderr, "BASEHEIGHT must be a number greater than or equal to 1.\n");
-        return 1;
-      }
-      break;
-    case 'o':
-      // Output file (default stdout)
-      CONFIG.output = optarg;
-      break;
-    case 'i':
-      // Input file (default stdin)
-      CONFIG.input = optarg;
-      break;
-    case 's':
-      // surface only mode - omit base (walls and bottom)
-      CONFIG.base = 0;
-      break;
-    case '?':
-      // unrecognized option OR missing option argument
-      switch (optopt) {
-      case 'z':
-      case 'b':
-      case 'i':
-      case 'o':
-      case 'm':
-      case 't':
-        fprintf(stderr, "Option -%c requires an argument.\n", optopt);
-        break;
-      default:
-        if (isprint(optopt)) {
-          fprintf(stderr, "Unknown option -%c\n", optopt);
-        }
-        else {
-          fprintf(stderr, "Unknown option character \\x%x\n", optopt);
-        }
-        break;
-      }
-      return 1;
-      break;
-    default:
-      // My understand is getopt will return ? for all unrecognized options,
-      // so I'm not sure what other cases will be caught here. Perhaps just
-      // options specified in optstring that I forget to handle above...
-      fprintf(stderr, "Unexpected getopt result: %c\n", optopt);
-      return 1;
-      break;
-    }
-  }
-
-  // should be no parameters left
-  if (optind < argc) {
-    fprintf(stderr, "Extraneous arguments\n");
-    return 1;
-  }
-
-  if (CONFIG.input == NULL) {
-    std::cout << "No input path set. Use -i to set input path." << std::endl;
-    std::exit(1);
-  }
-
-  if (CONFIG.output == NULL) {
-    std::cout << "No output path set. Use -o to set output path." << std::endl;
-    std::exit(1);
-  }
-
-  return 0;
-}
-
 int32_t main(int32_t argc, char **argv) {
-  if (parseopts(argc, argv)) {
-    fprintf(stderr, "option parsing failed\n");
-    return 1;
-  }
+  const Settings config = ParseArgs(argc, argv);
 
   Heightmap hm{};
-  ReadHeightmap(CONFIG.input, &hm);
+  ReadHeightmap(config.input, &hm);
   DumpHeightmap(hm);
-  HeightmapToPLY(hm);
+  HeightmapToPLY(hm, config);
 
   return 0;
 }

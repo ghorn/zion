@@ -102,6 +102,8 @@ cc_binary(
         "hmply.cpp",
         "heightmap.cpp",
         "heightmap.hpp",
+        "parse_args.cpp",
+        "parse_args.hpp",
     ],
     copts = cxx_opts,
     visibility = ["//visibility:public"],
