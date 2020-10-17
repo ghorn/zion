@@ -1,0 +1,108 @@
+load("@rules_python//python:defs.bzl", "py_binary")
+
+# Convert DEMs to raw pixel data.
+py_binary(
+    name = "dems_to_pixel_data",
+    srcs = ["dems_to_pixel_data.py"],
+    srcs_version = "PY3",
+    python_version = "PY3",
+    visibility = ["//visibility:public"],
+)
+
+# Convert raw pixel data to a PNG image.
+py_binary(
+    name = "pixel_data_to_png",
+    srcs = ["pixel_data_to_png.py"],
+    srcs_version = "PY3",
+    python_version = "PY3",
+    visibility = ["//visibility:public"],
+)
+
+# turn pixel data into binary blob of floats
+py_binary(
+    name = "pixel_data_to_floating_blob",
+    srcs = ["pixel_data_to_floating_blob.py"],
+    srcs_version = "PY3",
+    python_version = "PY3",
+    visibility = ["//visibility:public"],
+)
+
+cxx_opts = [
+    "-std=c++17",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-Wconversion",
+    "-Wcast-align",
+    "-Wdouble-promotion",
+    "-Wformat-security",
+    "-Winvalid-pch",
+    "-Wmissing-format-attribute",
+    "-Wnull-dereference",
+    "-Wpacked",
+    "-Wpointer-arith",
+    "-Wredundant-decls",
+    "-Wshadow",
+    "-Wsign-compare",
+    "-Wsign-conversion",
+    "-Wswitch-default",
+    "-Wswitch-enum",
+    "-Wundef",
+    "-Wunused",
+    "-Wwrite-strings",
+    "-Wduplicated-branches",
+    "-Wduplicated-cond",
+    "-Wlogical-op",
+    "-Wmisleading-indentation",
+    "-Wunused-but-set-parameter",
+    "-Wuseless-cast",
+    "-Winit-self",
+    "-Wnon-virtual-dtor",
+    #"-Wold-style-cast",
+    "-Woverloaded-virtual",
+]
+
+c_opts = [
+    "-Wall",
+    "-Wextra",
+    "-Wconversion",
+    "-Werror",
+    "-std=c11",
+    "-Wcast-align",
+    "-Wdouble-promotion",
+    "-Wformat-security",
+    "-Winvalid-pch",
+    "-Wmissing-format-attribute",
+    "-Wnull-dereference",
+    "-Wpacked",
+    "-Wpointer-arith",
+    "-Wredundant-decls",
+    "-Wshadow",
+    "-Wsign-compare",
+    "-Wsign-conversion",
+    "-Wswitch-default",
+    "-Wswitch-enum",
+    "-Wundef",
+    "-Wunused",
+    "-Wwrite-strings",
+    "-Wduplicated-branches",
+    "-Wduplicated-cond",
+    "-Wlogical-op",
+    "-Wmisleading-indentation",
+    "-Wunused-but-set-parameter",
+    "-Wfloat-equal",
+    "-Wformat=2",
+    "-Wformat-nonliteral",
+]
+
+# convert data blob to PLY mesh
+cc_binary(
+    name = "hmply",
+    srcs = [
+        "hmply.cpp",
+        "heightmap.cpp",
+        "heightmap.hpp",
+    ],
+    copts = cxx_opts,
+    visibility = ["//visibility:public"],
+)

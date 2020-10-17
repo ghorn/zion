@@ -1,181 +1,55 @@
-load("//:dem_names.bzl", "dem_names")
-load("@rules_python//python:defs.bzl", "py_binary")
+load("//dems:dem_names.bzl", "dem_names")
 
-# Downlaod all the DEM zip files.
-[
-    genrule(
-        name = "dem_zip_{}".format(dem_name),
-        srcs = [],
-        outs = ["{}.zip".format(dem_name)],
-        cmd = """
-wget -q --directory-prefix=$(@D) https://storage.googleapis.com/state-of-utah-sgid-downloads/lidar/zion-np-2016/QL2/DEMs/{}.zip
-""".format(dem_name),
-    )
-    for dem_name in dem_names()
-]
-
-# Unzip all the DEMs.
-[
-    genrule(
-        name = "dem_img_{}".format(dem_name),
-        srcs = [":dem_zip_{}".format(dem_name)],
-        outs = [
-            "{}.img".format(dem_name),
-            "{}.img.aux.xml".format(dem_name),
-            "{}.img.xml".format(dem_name),
-        ],
-        cmd = """
-unzip -q $< -d $(@D)
-""".format(dem_name),
-    )
-    for dem_name in dem_names()
-]
-
-# Convert DEMs to raw pixel data.
-py_binary(
-    name = "dems_to_pixel_data",
-    srcs = ["dems_to_pixel_data.py"],
-    srcs_version = "PY3",
-    python_version = "PY3",
-)
+#genrule(
+#    name = "meshlab_server",
+#    outs = ["MeshLabServer2020.09-linux.AppImage"],
+#    cmd = """
+#wget -q --directory-prefix=$(@D) https://github.com/cnr-isti-vclab/meshlab/releases/download/Meshlab-2020.09/MeshLabServer2020.09-linux.AppImage
+#"""
+#)
 
 genrule(
     name = "pixel_data",
-    tools = [":dems_to_pixel_data"],
+    tools = ["//src:dems_to_pixel_data"],
     outs = ["pixel_data.dat"],
-    srcs = [":{}.img".format(dem_name) for dem_name in dem_names()],
+    srcs = ["//dems:{}.img".format(dem_name) for dem_name in dem_names()],
     cmd = """
-$(location :dems_to_pixel_data) {} --output $@
-    """.format(",".join(["$(location {}.img)".format(dem_name) for dem_name in dem_names()])),
-)
-
-# Convert raw pixel data to a PNG image.
-py_binary(
-    name = "pixel_data_to_png",
-    srcs = ["pixel_data_to_png.py"],
-    srcs_version = "PY3",
-    python_version = "PY3",
+$(location //src:dems_to_pixel_data) {} --output $@
+    """.format(",".join(["$(location //dems:{}.img)".format(dem_name) for dem_name in dem_names()])),
 )
 
 genrule(
     name = "png",
-    tools = [":pixel_data_to_png"],
+    tools = ["//src:pixel_data_to_png"],
     outs = ["height_map.png"],
     srcs = [":pixel_data.dat"],
     cmd ="""
-$(location :pixel_data_to_png) $< $@ --target_dimension 1000
-du -hs $(location :height_map.png)
+$(location //src:pixel_data_to_png) $< $@ --target_dimension 1000
+du -hs $@
 """,
-)
-
-# turn pixel data into binary blob of floats
-py_binary(
-    name = "pixel_data_to_floating_blob",
-    srcs = ["pixel_data_to_floating_blob.py"],
-    srcs_version = "PY3",
-    python_version = "PY3",
 )
 
 decimation = 40
 
 genrule(
     name = "floating_blob",
-    tools = [":pixel_data_to_floating_blob"],
+    tools = ["//src:pixel_data_to_floating_blob"],
     srcs = [":pixel_data.dat"],
     outs = ["floating_blob_decim{}.dat".format(decimation)],
     cmd ="""
-$(location :pixel_data_to_floating_blob) $< $@ --decimation {}
+$(location //src:pixel_data_to_floating_blob) $< $@ --decimation {}
 du -hs $@
 """.format(decimation),
-)
-
-cxx_opts = [
-    "-std=c++17",
-    "-Wall",
-    "-Wextra",
-    "-Werror",
-    "-Wconversion",
-    "-Wcast-align",
-    "-Wdouble-promotion",
-    "-Wformat-security",
-    "-Winvalid-pch",
-    "-Wmissing-format-attribute",
-    "-Wnull-dereference",
-    "-Wpacked",
-    "-Wpointer-arith",
-    "-Wredundant-decls",
-    "-Wshadow",
-    "-Wsign-compare",
-    "-Wsign-conversion",
-    "-Wswitch-default",
-    "-Wswitch-enum",
-    "-Wundef",
-    "-Wunused",
-    "-Wwrite-strings",
-    "-Wduplicated-branches",
-    "-Wduplicated-cond",
-    "-Wlogical-op",
-    "-Wmisleading-indentation",
-    "-Wunused-but-set-parameter",
-    "-Wuseless-cast",
-    "-Winit-self",
-    "-Wnon-virtual-dtor",
-    #"-Wold-style-cast",
-    "-Woverloaded-virtual",
-]
-
-c_opts = [
-    "-Wall",
-    "-Wextra",
-    "-Wconversion",
-    "-Werror",
-    "-std=c11",
-    "-Wcast-align",
-    "-Wdouble-promotion",
-    "-Wformat-security",
-    "-Winvalid-pch",
-    "-Wmissing-format-attribute",
-    "-Wnull-dereference",
-    "-Wpacked",
-    "-Wpointer-arith",
-    "-Wredundant-decls",
-    "-Wshadow",
-    "-Wsign-compare",
-    "-Wsign-conversion",
-    "-Wswitch-default",
-    "-Wswitch-enum",
-    "-Wundef",
-    "-Wunused",
-    "-Wwrite-strings",
-    "-Wduplicated-branches",
-    "-Wduplicated-cond",
-    "-Wlogical-op",
-    "-Wmisleading-indentation",
-    "-Wunused-but-set-parameter",
-    "-Wfloat-equal",
-    "-Wformat=2",
-    "-Wformat-nonliteral",
-]
-
-# PLY format
-cc_binary(
-    name = "hmply",
-    srcs = [
-        "hmply.cpp",
-        "heightmap.cpp",
-        "heightmap.hpp",
-    ],
-    copts = cxx_opts,
 )
 
 # Turn the blob into a ply with hmply.
 genrule(
     name="ply",
-    tools = [":hmply"],
+    tools = ["//src:hmply"],
     srcs = [":floating_blob_decim{}.dat".format(decimation)],
     outs = ["height_map_decim{}.ply".format(decimation)],
     cmd = """
-time $(location :hmply) -i $< -o $@
+time $(location //src:hmply) -i $< -o $@
 du -hs $@
 """.format(decimation),
 )
