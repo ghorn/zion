@@ -157,39 +157,6 @@ c_opts = [
     "-Wformat-nonliteral",
 ]
 
-cc_binary(
-    name = "hmstl",
-    srcs = [
-        "hmstl.cpp",
-        "heightmap.cpp",
-        "heightmap.hpp",
-    ],
-    copts = cxx_opts,
-    deps = [":libtrix"],
-)
-
-cc_library(
-    name = "libtrix",
-    srcs = [
-        "libtrix.c",
-        "libtrix.h",
-    ],
-    copts = c_opts,
-)
-
-# Turn the binary blob into an stl with hmstl.
-genrule(
-    name="stl",
-    tools = [":hmstl"],
-    srcs = [":floating_blob.dat"],
-    outs = ["height_map.stl"],
-    cmd = """
-time $(location :hmstl) -i $(location :floating_blob.dat) -o $@
-du -hs $@
-""",
-)
-
-
 # PLY format
 cc_binary(
     name = "hmply",
