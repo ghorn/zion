@@ -28,7 +28,6 @@ void ScanHeightmap(Heightmap *hm) {
 
   hm->min = min;
   hm->max = max;
-  hm->range = max - min;
 }
 
 void ReadHeightmapData(const std::string &path, int64_t *nx, int64_t *ny, std::vector<float> *image) {
@@ -69,5 +68,5 @@ void DumpHeightmap(const Heightmap &hm) {
   fprintf(stderr, "Pixels: %.2e\n", (double)hm.size);
   fprintf(stderr, "Min: %f\n", (double)hm.min);
   fprintf(stderr, "Max: %f\n", (double)hm.max);
-  fprintf(stderr, "Range: %f\n", (double)hm.range);
+  fprintf(stderr, "Range: %f\n", (double)hm.max - (double)hm.min);
 }

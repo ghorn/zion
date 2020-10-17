@@ -41,7 +41,7 @@ genrule(
     srcs = [":floating_blob_decim{}.dat".format(decimation)],
     outs = ["height_map_decim{}.ply".format(decimation)],
     cmd = """
-time $(location //src:hmply) -i $< -o $@
+time $(location //src:hmply) -i $< -o $@ -b 0.1 -x 170
 du -hs $@
 """.format(decimation),
 )

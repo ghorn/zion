@@ -9,8 +9,8 @@ typedef struct {
   uint32_t width, height;
   uint64_t size;
 
-  // z dimensions (range = max - min = relief)
-  float min, max, range;
+  // z dimensions
+  float min, max;
 
   // raster with size pixels ranging in value from min to max
   std::vector<float> data;

@@ -6,6 +6,38 @@
 
 #define TRIX_FACE_MAX 4294967295U
 
+struct Scale {
+  bool generate_base;
+  float z_scale;
+  float xy_scale;
+  float z_offset;
+};
+
+static Scale ComputeScale(const Settings &config, const Heightmap &hm) {
+  // make sure min heightmap is non-negative
+  assert(hm.min >=0);
+
+  Scale scale;
+  scale.generate_base = config.generate_base;
+  // if xy size is specified, compute scale to be applied to each xyz point
+  const float max_height_width = (float)std::max(hm.height, hm.width);
+  scale.xy_scale = config.xy_size <= 0 ? 1 : config.xy_size / max_height_width;
+  scale.z_scale = scale.xy_scale * config.z_scale;
+  // compute z offset from min/max height
+  // relief == max - min
+  // zoff / (relief + zoff) == frac
+  // zoff == relief * frac / (1 - frac)
+  scale.z_offset = config.z_scale * (hm.max - hm.min) * config.baseheight_frac / (1 - config.baseheight_frac);
+
+  //printf("config.xy_size: %.3f\n", (double)config.xy_size);
+  //printf("max_height_width: %.3f\n", (double)max_height_width);
+  //printf("baseheight_frac: %.3f\n", (double)config.baseheight_frac);
+  //printf("xy_scale: %.3f\n", (double)scale.xy_scale);
+  //printf("z_scale: %.3f\n", (double)scale.z_scale);
+  //printf("z_offset: %.3f\n", (double)scale.z_offset);
+  return scale;
+}
+
 template <class T>
 inline void hash_combine(std::size_t & seed, const T & v)
 {
@@ -192,8 +224,8 @@ static float avgnonneg(const float z0, const float z1, const float z2, const flo
   return sum / (float)n;
 }
 
-static inline float hmzat(const Heightmap &hm, uint32_t x, uint32_t y, const Settings &config) {
-  return config.baseheight + config.zscale * LookupIndex(hm, x, y);
+static inline float hmzat(const Heightmap &hm, uint32_t x, uint32_t y, const Scale &scale) {
+  return scale.z_offset + scale.z_scale * LookupIndex(hm, x, y);
 }
 
 // given four vertices and a mesh, add two triangles representing the quad with given corners
@@ -224,7 +256,7 @@ static void Mesh(const Heightmap &hm,
                  FILE *const output,
                  vertex_map_t * const vmap, 
                  uint32_t * const triangle_count,
-                 const Settings &config) {
+                 const Scale &scale) {
   uint32_t x, y;
   float az, bz, cz, dz, ez, fz, gz, hz;
   vertex_t vp, v1, v2, v3, v4;
@@ -275,61 +307,60 @@ static void Mesh(const Heightmap &hm,
       if (x == 0 || y == 0) {
         az = -1;
       } else {
-        az = hmzat(hm, x - 1, y - 1, config);
+        az = hmzat(hm, x - 1, y - 1, scale);
       }
 
       if (y == 0) {
         bz = -1;
       } else {
-        bz = hmzat(hm, x, y - 1, config);
+        bz = hmzat(hm, x, y - 1, scale);
       }
 
       if (y == 0 || x + 1 == hm.width) {
         cz = -1;
       } else {
-        cz = hmzat(hm, x + 1, y - 1, config);
+        cz = hmzat(hm, x + 1, y - 1, scale);
       }
 
       if (x + 1 == hm.width) {
         dz = -1;
       } else {
-        dz = hmzat(hm, x + 1, y, config);
+        dz = hmzat(hm, x + 1, y, scale);
       }
 
       if (x + 1 == hm.width || y + 1 == hm.height) {
         ez = -1;
       } else {
-        ez = hmzat(hm, x + 1, y + 1, config);
+        ez = hmzat(hm, x + 1, y + 1, scale);
       }
 
       if (y + 1 == hm.height) {
         fz = -1;
       } else {
-        fz = hmzat(hm, x, y + 1, config);
+        fz = hmzat(hm, x, y + 1, scale);
       }
 
       if (y + 1 == hm.height || x == 0) {
         gz = -1;
       } else {
-        gz = hmzat(hm, x - 1, y + 1, config);
+        gz = hmzat(hm, x - 1, y + 1, scale);
       }
 
       if (x == 0) {
         hz = -1;
       } else {
-        hz = hmzat(hm, x - 1, y, config);
+        hz = hmzat(hm, x - 1, y, scale);
       }
 
       // pixel vertex
       vp.x = (float)x;
       vp.y = (float)(hm.height - y);
-      vp.z = hmzat(hm, x, y, config);
+      vp.z = hmzat(hm, x, y, scale);
 
       // Vertex 1
       v1.x = (float)x - 0.5f;
       v1.y = ((float)hm.height - ((float)y - 0.5f));
       v1.z = avgnonneg(az, bz, vp.z, hz);
-
       // Vertex 2
       v2.x = (float)x + 0.5f;
       v2.y = v1.y;
@@ -345,11 +376,17 @@ static void Mesh(const Heightmap &hm,
       v4.y = v3.y;
       v4.z = avgnonneg(hz, vp.z, fz, gz);
 
+      // Scale XY coordinates.
+      for (vertex_t *vert : {&vp, &v1, &v2, &v3, &v4}) {
+        vert->x *= scale.xy_scale;
+        vert->y *= scale.xy_scale;
+      }
+
       // Upper surface
       Surface(pass, output, vmap, triangle_count, v1, v2, v3, v4);
 
       // nothing left to do for this pixel unless we need to make walls
-      if (!config.base) {
+      if (!scale.generate_base) {
         continue;
       }
 
@@ -392,17 +429,19 @@ static void WriteHeader(FILE * const output, const uint32_t vertex_count, const 
   fprintf(output, "end_header\r\n");
 }
 
-static void HeightmapToPLY(const Heightmap &hm, const Settings &config) {
+static void HeightmapToPLY(const Heightmap &hm,
+                           const char *const output_path,
+                           const Scale &scale) {
   // Traverse the heightmap and count the triangles.
   uint32_t triangle_count = 0;
   FILE *output = NULL;
   vertex_map_t vmap;
-  Mesh(hm, Pass::kCountVerticesAndTriangles, output, &vmap, &triangle_count, config);
+  Mesh(hm, Pass::kCountVerticesAndTriangles, output, &vmap, &triangle_count, scale);
   printf("mesh has %.2e triangles and %.2e vertices\n",
          (double)triangle_count, (double)vmap.size());
 
   // Open output file
-  output = fopen(config.output, "w");
+  output = fopen(output_path, "w");
   if (output == NULL) {
     printf("Error opening output file\n");
     exit(1);
@@ -413,20 +452,21 @@ static void HeightmapToPLY(const Heightmap &hm, const Settings &config) {
 
   // Traverse the heightmap again but this time write it out to file.
   vmap.clear();
-  Mesh(hm, Pass::kVertexList, output, &vmap, &triangle_count, config);
-  Mesh(hm, Pass::kTriangleList, output, &vmap, &triangle_count, config);
+  Mesh(hm, Pass::kVertexList, output, &vmap, &triangle_count, scale);
+  Mesh(hm, Pass::kTriangleList, output, &vmap, &triangle_count, scale);
 
   // Close output.
   fclose(output);
 }
 
+
 int32_t main(int32_t argc, char **argv) {
   const Settings config = ParseArgs(argc, argv);
-
   Heightmap hm{};
   ReadHeightmap(config.input, &hm);
   DumpHeightmap(hm);
-  HeightmapToPLY(hm, config);
+  const Scale scale = ComputeScale(config, hm);
+  HeightmapToPLY(hm, config.output, scale);
 
   return 0;
 }
