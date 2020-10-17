@@ -1,6 +1,8 @@
 #include <cmath>
 #include <cassert>
+#include <chrono>
 #include <unordered_map>
+#include <map>
 #include "heightmap.hpp"
 #include "parse_args.hpp"
 
@@ -55,6 +57,28 @@ struct vertex_t {
       y == other.y &&
       z == other.z;
   }
+  bool operator!=(const vertex_t &other) const {
+    return
+      x != other.x ||
+      y != other.y ||
+      z != other.z;
+  }
+  bool operator<(const vertex_t &other) const {
+    if (x < other.x) {
+      return true;
+    } else if (x > other.x) {
+      return false;
+    }
+    if (y < other.y) {
+      return true;
+    } else if (y > other.y) {
+      return false;
+    }
+    if (z < other.z) {
+      return true;
+    }
+    return false;
+  }
 };
 
 namespace std {
@@ -79,6 +103,7 @@ struct triangle_t {
 };
 
 using vertex_map_t = std::unordered_map<vertex_t, uint32_t>;
+//using vertex_map_t = std::map<vertex_t, uint32_t>;
 
 static inline float LookupIndex(const Heightmap &hm, uint32_t x, uint32_t y) {
   return hm.data[(uint64_t)y * hm.width + (uint64_t)x];
@@ -436,7 +461,9 @@ static void HeightmapToPLY(const Heightmap &hm,
   uint32_t triangle_count = 0;
   FILE *output = NULL;
   vertex_map_t vmap;
+  auto t0 = std::chrono::steady_clock::now();
   Mesh(hm, Pass::kCountVerticesAndTriangles, output, &vmap, &triangle_count, scale);
+  auto t1 = std::chrono::steady_clock::now();
   printf("mesh has %.2e triangles and %.2e vertices\n",
          (double)triangle_count, (double)vmap.size());
 
@@ -452,8 +479,15 @@ static void HeightmapToPLY(const Heightmap &hm,
 
   // Traverse the heightmap again but this time write it out to file.
   vmap.clear();
+  auto t2 = std::chrono::steady_clock::now();
   Mesh(hm, Pass::kVertexList, output, &vmap, &triangle_count, scale);
+  auto t3 = std::chrono::steady_clock::now();
   Mesh(hm, Pass::kTriangleList, output, &vmap, &triangle_count, scale);
+  auto t4 = std::chrono::steady_clock::now();
+
+  printf("counted triangles in %.2f s\n", std::chrono::duration<double>(t1-t0).count());
+  printf("write vertices in %.2f s\n", std::chrono::duration<double>(t3-t2).count());
+  printf("write triangles in %.2f s\n", std::chrono::duration<double>(t4-t3).count());
 
   // Close output.
   fclose(output);
