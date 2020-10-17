@@ -76,15 +76,17 @@ py_binary(
     python_version = "PY3",
 )
 
+decimation = 40
+
 genrule(
     name = "floating_blob",
     tools = [":pixel_data_to_floating_blob"],
-    outs = ["floating_blob.dat"],
     srcs = [":pixel_data.dat"],
+    outs = ["floating_blob_decim{}.dat".format(decimation)],
     cmd ="""
-$(location :pixel_data_to_floating_blob) $< $@ --downsample 5
-du -hs $(location :floating_blob.dat)
-""",
+$(location :pixel_data_to_floating_blob) $< $@ --decimation {}
+du -hs $@
+""".format(decimation),
 )
 
 cxx_opts = [
@@ -182,7 +184,7 @@ genrule(
     srcs = [":floating_blob.dat"],
     outs = ["height_map.stl"],
     cmd = """
-$(location :hmstl) -i $(location :floating_blob.dat) -o $@
+time $(location :hmstl) -i $(location :floating_blob.dat) -o $@
 du -hs $@
 """,
 )
@@ -203,10 +205,10 @@ cc_binary(
 genrule(
     name="ply",
     tools = [":hmply"],
-    srcs = [":floating_blob.dat"],
-    outs = ["height_map.ply"],
+    srcs = [":floating_blob_decim{}.dat".format(decimation)],
+    outs = ["height_map_decim{}.ply".format(decimation)],
     cmd = """
-$(location :hmply) -i $(location :floating_blob.dat) -o $@
+time $(location :hmply) -i $< -o $@
 du -hs $@
-""",
+""".format(decimation),
 )

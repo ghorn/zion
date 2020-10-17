@@ -19,7 +19,7 @@ def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('height_map_path', help='Input height map data path.')
   parser.add_argument('output_path', help='Output path for blob.')
-  parser.add_argument('--downsample', type=int, help='Optional downsample factor.')
+  parser.add_argument('--decimation', type=int, help='Optional downsample factor.')
   flags = parser.parse_args()
 
   # load data
@@ -34,9 +34,9 @@ def main():
   print('converted to 32 bit floats in {} seconds'.format(time.time() - t0))
 
   # downsample
-  if flags.downsample:
+  if flags.decimation:
     t0 = time.time()
-    heightmap_data = heightmap_data[::flags.downsample, ::flags.downsample] / flags.downsample
+    heightmap_data = heightmap_data[::flags.decimation, ::flags.decimation] / flags.decimation
     print('decimated in {} seconds'.format(time.time() - t0))
 
   # normalize image height
