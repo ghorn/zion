@@ -1,13 +1,6 @@
-#include <string.h>
-#include <ctype.h>
-#include <getopt.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <cmath>
+#include <cassert>
 #include <unordered_map>
-#include <iostream>
-
 #include "heightmap.hpp"
 #include "parse_args.hpp"
 
@@ -38,21 +31,11 @@ namespace std {
   {
     std::size_t operator()(const vertex_t& vertex) const
     {
-      //using std::size_t;
-      //using std::hash;
-      //using std::string;
-
       std::size_t seed = 0;
       hash_combine(seed, vertex.x);
       hash_combine(seed, vertex.y);
       hash_combine(seed, vertex.z);
       return seed;
-//      // Compute individual hash values for first,
-//      // second and third and combine them using XOR
-//      // and bit shifting:
-//      return ((hash<string>()(k.first)
-//               ^ (hash<string>()(k.second) << 1)) >> 1)
-//               ^ (hash<int>()(k.third) << 1);
     }
   };
 }
@@ -63,17 +46,6 @@ struct triangle_t {
   vertex_t c;
 };
 
-//// hash function for vertices
-//template<typename S, typename T> struct pair_hash<std::pair<S, T>>
-//{
-//    inline std::size_t operator()(const std::pair<S, T> & v) const
-//    {
-//         std::size_t seed = 0;
-//         hash_combine(seed, v.first);
-//         hash_combine(seed, v.second);
-//         return seed;
-//    }
-//};
 using vertex_map_t = std::unordered_map<vertex_t, uint32_t>;
 
 static inline float LookupIndex(const Heightmap &hm, uint32_t x, uint32_t y) {

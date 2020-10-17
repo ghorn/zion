@@ -1,14 +1,8 @@
-#ifndef _HEIGHTMAP_H
-#define _HEIGHTMAP_H
+#pragma once
 
 #include <inttypes.h>
-#include <assert.h>
 #include <vector>
 #include <string>
-
-static_assert(sizeof(unsigned char) == sizeof(uint8_t), "whow");
-static_assert(sizeof(unsigned int) == sizeof(uint32_t), "wow");
-static_assert(sizeof(unsigned long) == sizeof(uint64_t), "wowie");
 
 typedef struct {
   // xy dimensions (size = width * height)
@@ -25,5 +19,3 @@ typedef struct {
 
 void ReadHeightmap(const std::string &path, Heightmap * const hm);
 void DumpHeightmap(const Heightmap &hm);
-
-#endif

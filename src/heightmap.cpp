@@ -1,6 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <limits.h>
 #include <iostream>
 #include <fstream>
 #include <cmath>
