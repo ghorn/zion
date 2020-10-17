@@ -21,7 +21,7 @@ du -hs $@
 """,
 )
 
-decimation = 40
+decimation = 4
 
 genrule(
     name = "floating_blob",
@@ -63,7 +63,7 @@ du -hs $@
     tags = ["manual"],
 )
 
-# Simplify the ply with meshlab.
+# Convert mesh to STL with meshlab.
 genrule(
     name="stl",
     tools = ["//meshlab:meshlab_server"],
@@ -71,6 +71,22 @@ genrule(
         "height_map_decim{}.ply".format(decimation),
     ],
     outs = ["height_map_decim{}.stl".format(decimation)],
+    cmd = """
+DISPLAY=:0.0 $(location //meshlab:meshlab_server) -i $< -o $@
+du -hs $@
+""".format(decimation),
+    local=True,
+    tags = ["manual"],
+)
+
+# Convert simplified mesh to STL with meshlab.
+genrule(
+    name="simplified_stl",
+    tools = ["//meshlab:meshlab_server"],
+    srcs = [
+        "height_map_decim{}_simplified.ply".format(decimation),
+    ],
+    outs = ["height_map_decim{}_simplified.stl".format(decimation)],
     cmd = """
 DISPLAY=:0.0 $(location //meshlab:meshlab_server) -i $< -o $@
 du -hs $@
