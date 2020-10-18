@@ -21,7 +21,7 @@ du -hs $@
 """,
 )
 
-decimation = 4
+decimation = 5
 
 genrule(
     name = "floating_blob",
@@ -41,7 +41,7 @@ genrule(
     srcs = [":floating_blob_decim{}.dat".format(decimation)],
     outs = ["height_map_decim{}.ply".format(decimation)],
     cmd = """
-time $(location //src:hmply) -i $< -b 0.1 -x 170
+time $(location //src:hmply) -i $< -b 0.25 -x 170
 >&2 du -hs header.dat vertices.dat triangles.dat
 >&2 echo "\nconcatenating files"
 time cat header.dat vertices.dat triangles.dat > $@

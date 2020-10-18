@@ -29,7 +29,7 @@ static Scale ComputeScale(const Settings &config, const Heightmap &hm) {
   // relief == max - min
   // zoff / (relief + zoff) == frac
   // zoff == relief * frac / (1 - frac)
-  scale.z_offset = config.z_scale * (hm.max - hm.min) * config.baseheight_frac / (1 - config.baseheight_frac);
+  scale.z_offset = scale.z_scale * (hm.max - hm.min) * config.baseheight_frac / (1 - config.baseheight_frac);
 
   //fprintf(stderr, "config.xy_size: %.3f\n", (double)config.xy_size);
   //fprintf(stderr, "max_height_width: %.3f\n", (double)max_height_width);

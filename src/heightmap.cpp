@@ -39,7 +39,7 @@ void ReadHeightmapData(const std::string &path, int64_t *nx, int64_t *ny, std::v
 
   image_file.read(reinterpret_cast<char*>(ny), 8);
   image_file.read(reinterpret_cast<char*>(nx), 8);
-  fprintf(stderr, "Reading (%ld x %ld) doubles...", *nx, *ny);
+  fprintf(stderr, "Reading (%ld x %ld) doubles...\n", *nx, *ny);
 
   image->resize(static_cast<uint64_t>(*nx) * static_cast<uint64_t>(*ny), 0);
   image_file.read(reinterpret_cast<char*>(image->data()), (*nx)*(*ny)*4);
