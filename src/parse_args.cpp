@@ -90,7 +90,7 @@ Settings ParseArgs(int32_t argc, char **argv) {
   }
 
   if (config.input == NULL) {
-    std::cout << "No input path set. Use -i to set input path." << std::endl;
+    fprintf(stderr, "No input path set. Use -i to set input path.\n");
     std::exit(1);
   }
 

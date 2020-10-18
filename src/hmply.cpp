@@ -31,12 +31,12 @@ static Scale ComputeScale(const Settings &config, const Heightmap &hm) {
   // zoff == relief * frac / (1 - frac)
   scale.z_offset = config.z_scale * (hm.max - hm.min) * config.baseheight_frac / (1 - config.baseheight_frac);
 
-  //printf("config.xy_size: %.3f\n", (double)config.xy_size);
-  //printf("max_height_width: %.3f\n", (double)max_height_width);
-  //printf("baseheight_frac: %.3f\n", (double)config.baseheight_frac);
-  //printf("xy_scale: %.3f\n", (double)scale.xy_scale);
-  //printf("z_scale: %.3f\n", (double)scale.z_scale);
-  //printf("z_offset: %.3f\n", (double)scale.z_offset);
+  //fprintf(stderr, "config.xy_size: %.3f\n", (double)config.xy_size);
+  //fprintf(stderr, "max_height_width: %.3f\n", (double)max_height_width);
+  //fprintf(stderr, "baseheight_frac: %.3f\n", (double)config.baseheight_frac);
+  //fprintf(stderr, "xy_scale: %.3f\n", (double)scale.xy_scale);
+  //fprintf(stderr, "z_scale: %.3f\n", (double)scale.z_scale);
+  //fprintf(stderr, "z_offset: %.3f\n", (double)scale.z_offset);
   return scale;
 }
 
@@ -129,7 +129,7 @@ static void WriteTriangle(FILE * const vertex_output,
   const vertex_t vertices[3] = {triangle.a, triangle.b, triangle.c};
 
   if (*triangle_count == TRIX_FACE_MAX) {
-    printf("Too many triangles!!!\n");
+    fprintf(stderr, "Too many triangles!!!\n");
     exit(1);
   }
   (*triangle_count)++;
@@ -137,7 +137,7 @@ static void WriteTriangle(FILE * const vertex_output,
   // Write triangle header.
   const uint8_t three = 3; // This triangle will have three vertices, big surprise.
   if (fwrite(&three, 1, 1, triangle_output) != 1) {
-    printf("Error writing 'three' as uint8_t\n");
+    fprintf(stderr, "Error writing 'three' as uint8_t\n");
     exit(1);
   }
 
@@ -149,13 +149,13 @@ static void WriteTriangle(FILE * const vertex_output,
       // This is a new vertex, write it to the vertex output and insert it to the hashmap.
       // Check for size limit.
       if (vmap->size() == (size_t)TRIX_FACE_MAX) {
-        printf("Too many vertices!!!\n");
+        fprintf(stderr, "Too many vertices!!!\n");
         exit(1);
       }
 
       // Write this new vertex to file.
       if (fwrite(&vertex, 4, 3, vertex_output) != 3) {
-        printf("Error writing vertex\n");
+        fprintf(stderr, "Error writing vertex\n");
         exit(1);
       }
 
@@ -168,7 +168,7 @@ static void WriteTriangle(FILE * const vertex_output,
 
     // write the vertex index to the triangle file
     if (fwrite(&vertex_index, 4, 1, triangle_output) != 1) {
-      printf("Error writing vertex index for triangle %u\n", *triangle_count);
+      fprintf(stderr, "Error writing vertex index for triangle %u\n", *triangle_count);
       exit(1);
     }
   }
@@ -424,13 +424,13 @@ static void HeightmapToPLY(const Heightmap &hm,
   // Open output files
   FILE *vertex_output = fopen("vertices.dat", "w");
   if (vertex_output == NULL) {
-    printf("Error opening vertex output file\n");
+    fprintf(stderr, "Error opening vertex output file\n");
     exit(1);
   }
 
   FILE *triangle_output = fopen("triangles.dat", "w");
   if (triangle_output == NULL) {
-    printf("Error opening triangle output file\n");
+    fprintf(stderr, "Error opening triangle output file\n");
     exit(1);
   }
 
@@ -440,8 +440,8 @@ static void HeightmapToPLY(const Heightmap &hm,
   auto t0 = std::chrono::steady_clock::now();
   Mesh(hm, vertex_output, triangle_output, &vmap, &triangle_count, scale);
   auto t1 = std::chrono::steady_clock::now();
-  printf("Meshed in %.2f s\n", std::chrono::duration<double>(t1-t0).count());
-  printf("mesh has %.2e triangles and %.2e vertices\n",
+  fprintf(stderr, "Meshed in %.2f s\n", std::chrono::duration<double>(t1-t0).count());
+  fprintf(stderr, "mesh has %.2e triangles and %.2e vertices\n",
          (double)triangle_count, (double)vmap.size());
   fclose(vertex_output);
   fclose(triangle_output);
@@ -449,7 +449,7 @@ static void HeightmapToPLY(const Heightmap &hm,
   // Open header file
   FILE *header_output = fopen("header.dat", "w");
   if (header_output == NULL) {
-    printf("Error opening output file\n");
+    fprintf(stderr, "Error opening output file\n");
     exit(1);
   }
 
@@ -468,7 +468,7 @@ int32_t main(int32_t argc, char **argv) {
   ReadHeightmap(config.input, &hm);
   DumpHeightmap(hm);
   auto t1 = std::chrono::steady_clock::now();
-  printf("Read heightmap in %.2f s\n", std::chrono::duration<double>(t1-t0).count());
+  fprintf(stderr, "Read heightmap in %.2f s\n", std::chrono::duration<double>(t1-t0).count());
   const Scale scale = ComputeScale(config, hm);
   HeightmapToPLY(hm, scale);
 

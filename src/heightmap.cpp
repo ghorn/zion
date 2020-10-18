@@ -6,7 +6,7 @@
 
 void ScanHeightmap(Heightmap *hm) {
   if (hm == NULL) {
-    std::cout << "heightmap is null" << std::endl;
+    fprintf(stderr, "heightmap is null\n");
     std::exit(1);
     return;
   }
@@ -33,19 +33,19 @@ void ScanHeightmap(Heightmap *hm) {
 void ReadHeightmapData(const std::string &path, int64_t *nx, int64_t *ny, std::vector<float> *image) {
   std::ifstream image_file(path, std::ios::in|std::ios::binary);
   if (!image_file.is_open()) {
-    std::cout << "Failed to open image." << std::endl;
+    fprintf(stderr, "Failed to open image.\n");
     std::exit(1);
   }
 
   image_file.read(reinterpret_cast<char*>(ny), 8);
   image_file.read(reinterpret_cast<char*>(nx), 8);
-  std::cout << "Reading (" << *nx << " x " << *ny << ") doubles..." << std::endl;
+  fprintf(stderr, "Reading (%ld x %ld) doubles...", *nx, *ny);
 
   image->resize(static_cast<uint64_t>(*nx) * static_cast<uint64_t>(*ny), 0);
   image_file.read(reinterpret_cast<char*>(image->data()), (*nx)*(*ny)*4);
 
   if (!image_file) {
-    std::cout << "error: only " << image_file.gcount() << " bytes could be read" << std::endl;
+    fprintf(stderr, "error: only %lu bytes could be read\n", image_file.gcount());
     std::exit(1);
   }
   image_file.close();
