@@ -121,96 +121,61 @@ enum class Pass {
   kTriangleList
 };
 
-static void WriteTriangle(const Pass pass,
-                          FILE * const output,
+static void WriteTriangle(FILE * const vertex_output,
+                          FILE * const triangle_output,
                           vertex_map_t *const vmap,
                           uint32_t *const triangle_count,
                           const triangle_t &triangle) {
   const vertex_t vertices[3] = {triangle.a, triangle.b, triangle.c};
-  switch (pass)
-  {
-  case Pass::kCountVerticesAndTriangles:
-  {
-    if (*triangle_count == TRIX_FACE_MAX) {
-      printf("Too many triangles!!!\n");
-      exit(1);
-    }
-    (*triangle_count)++;
 
-    // Add each vertex to the hashmap if it doesn't exist.
-    for (const vertex_t &vertex : vertices) {
-      auto search = vmap->find(vertex);
-      if (search == vmap->end()) {
-        // Will insert vertex.
-
-        // Check for size limit.
-        if (vmap->size() == (size_t)TRIX_FACE_MAX) {
-          printf("Too many verticestriangles!!!\n");
-          exit(1);
-        }
-
-        // insert vertex to map
-        vmap->insert({vertex, (uint32_t)(vmap->size())});
-      }
-    }
-    break;
+  if (*triangle_count == TRIX_FACE_MAX) {
+    printf("Too many triangles!!!\n");
+    exit(1);
   }
-  case Pass::kVertexList:
-  {
-    // Add each vertex to the hashmap if it doesn't exist.
-    for (const vertex_t &vertex : vertices) {
-      auto search = vmap->find(vertex);
-      if (search == vmap->end()) {
-        // Will insert vertex.
+  (*triangle_count)++;
 
-        // Check for size limit.
-        if (vmap->size() == (size_t)TRIX_FACE_MAX) {
-          printf("Too many verticestriangles!!!\n");
-          exit(1);
-        }
-
-        // insert vertex to map
-        vmap->insert({vertex, (uint32_t)(vmap->size())});
-  
-        // write vertex to list
-        // vertex struct is 3 floats in sequence needed for output!
-        if (fwrite(&vertex, 4, 3, output) != 3) {
-          printf("Error writing vertex\n");
-          exit(1);
-        }
-      }
-    }
-    break;
+  // Write triangle header.
+  const uint8_t three = 3; // This triangle will have three vertices, big surprise.
+  if (fwrite(&three, 1, 1, triangle_output) != 1) {
+    printf("Error writing 'three' as uint8_t\n");
+    exit(1);
   }
-  case Pass::kTriangleList:
-  {
-    const uint8_t three = 3;
-    if (fwrite(&three, 1, 1, output) != 1) {
-      printf("Error writing 'three' as uint8_t\n");
-      exit(1);
-    }
 
-    for (const vertex_t &vertex : vertices) {
-      auto search = vmap->find(vertex);
-      assert(search != vmap.end());
-      const uint32_t vertex_index = search->second;
-      if (fwrite(&vertex_index, 4, 1, output) != 1) {
-        printf("Error writing vertex index for triangle %u\n", *triangle_count);
+  // Add each vertex to the hashmap if it doesn't exist.
+  for (const vertex_t &vertex : vertices) {
+    auto search = vmap->find(vertex);
+    uint32_t vertex_index = 0;
+    if (search == vmap->end()) {
+      // This is a new vertex, write it to the vertex output and insert it to the hashmap.
+      // Check for size limit.
+      if (vmap->size() == (size_t)TRIX_FACE_MAX) {
+        printf("Too many vertices!!!\n");
         exit(1);
       }
+
+      // Write this new vertex to file.
+      if (fwrite(&vertex, 4, 3, vertex_output) != 3) {
+        printf("Error writing vertex\n");
+        exit(1);
+      }
+
+      // Insert vertex into hashmap
+      vertex_index = static_cast<uint32_t>(vmap->size());
+      vmap->insert({vertex, vertex_index});
+    } else {
+      vertex_index = search->second;
     }
-    break;
-  }
-  default:
-  {
-    assert(false);
-    break;
-  }
+
+    // write the vertex index to the triangle file
+    if (fwrite(&vertex_index, 4, 1, triangle_output) != 1) {
+      printf("Error writing vertex index for triangle %u\n", *triangle_count);
+      exit(1);
+    }
   }
 }
 
-static void Wall(const Pass pass,
-                 FILE * const output,
+static void Wall(FILE * const vertex_output,
+                 FILE * const triangle_output,
                  vertex_map_t *const vmap,
                  uint32_t * const triangle_count,
                  const vertex_t &a,
@@ -227,8 +192,8 @@ static void Wall(const Pass pass,
   t2.a = b0;
   t2.b = a0;
   t2.c = a;
-  WriteTriangle(pass, output, vmap, triangle_count, t1);
-  WriteTriangle(pass, output, vmap, triangle_count, t2);
+  WriteTriangle(vertex_output, triangle_output, vmap, triangle_count, t1);
+  WriteTriangle(vertex_output, triangle_output, vmap, triangle_count, t2);
 }
 
 // returns average of all non-negative arguments.
@@ -254,8 +219,8 @@ static inline float hmzat(const Heightmap &hm, uint32_t x, uint32_t y, const Sca
 }
 
 // given four vertices and a mesh, add two triangles representing the quad with given corners
-static void Surface(const Pass pass,
-                    FILE * const output,
+static void Surface(FILE * const vertex_output,
+                    FILE * const triangle_output,
                     vertex_map_t *const vmap,
                     uint32_t * const triangle_count,
                     const vertex_t &v1,
@@ -272,14 +237,14 @@ static void Surface(const Pass pass,
   j.b = v3;
   j.c = v2;
 
-  WriteTriangle(pass, output, vmap, triangle_count, i);
-  WriteTriangle(pass, output, vmap, triangle_count, j);
+  WriteTriangle(vertex_output, triangle_output, vmap, triangle_count, i);
+  WriteTriangle(vertex_output, triangle_output, vmap, triangle_count, j);
 }
 
 static void Mesh(const Heightmap &hm,
-                 const Pass pass,
-                 FILE *const output,
-                 vertex_map_t * const vmap, 
+                 FILE *const vertex_output,
+                 FILE *const triangle_output,
+                 vertex_map_t * const vmap,
                  uint32_t * const triangle_count,
                  const Scale &scale) {
   uint32_t x, y;
@@ -408,7 +373,7 @@ static void Mesh(const Heightmap &hm,
       }
 
       // Upper surface
-      Surface(pass, output, vmap, triangle_count, v1, v2, v3, v4);
+      Surface(vertex_output, triangle_output, vmap, triangle_count, v1, v2, v3, v4);
 
       // nothing left to do for this pixel unless we need to make walls
       if (!scale.generate_base) {
@@ -417,27 +382,27 @@ static void Mesh(const Heightmap &hm,
 
       // north wall (vertex 1 to 2)
       if (y == 0 || Masked(hm, x, y - 1)) {
-        Wall(pass, output, vmap, triangle_count, v1, v2);
+        Wall(vertex_output, triangle_output, vmap, triangle_count, v1, v2);
       }
 
       // east wall (vertex 2 to 3)
       if (x + 1 == hm.width || Masked(hm, x + 1, y)) {
-        Wall(pass, output, vmap, triangle_count, v2, v3);
+        Wall(vertex_output, triangle_output, vmap, triangle_count, v2, v3);
       }
 
       // south wall (vertex 3 to 4)
       if (y + 1 == hm.height || Masked(hm, x, y + 1)) {
-        Wall(pass, output, vmap, triangle_count, v3, v4);
+        Wall(vertex_output, triangle_output, vmap, triangle_count, v3, v4);
       }
 
       // west wall (vertex 4 to 1)
       if (x == 0 || Masked(hm, x - 1, y)) {
-        Wall(pass, output, vmap, triangle_count, v4, v1);
+        Wall(vertex_output, triangle_output, vmap, triangle_count, v4, v1);
       }
 
       // bottom surface - same as top, except with z = 0 and reverse winding
       v1.z = 0; v2.z = 0; v3.z = 0; v4.z = 0;
-      Surface(pass, output, vmap, triangle_count, v4, v3, v2, v1);
+      Surface(vertex_output, triangle_output, vmap, triangle_count, v4, v3, v2, v1);
     }
   }
 }
@@ -455,52 +420,57 @@ static void WriteHeader(FILE * const output, const uint32_t vertex_count, const 
 }
 
 static void HeightmapToPLY(const Heightmap &hm,
-                           const char *const output_path,
                            const Scale &scale) {
+  // Open output files
+  FILE *vertex_output = fopen("vertices.dat", "w");
+  if (vertex_output == NULL) {
+    printf("Error opening vertex output file\n");
+    exit(1);
+  }
+
+  FILE *triangle_output = fopen("triangles.dat", "w");
+  if (triangle_output == NULL) {
+    printf("Error opening triangle output file\n");
+    exit(1);
+  }
+
   // Traverse the heightmap and count the triangles.
-  uint32_t triangle_count = 0;
-  FILE *output = NULL;
   vertex_map_t vmap;
+  uint32_t triangle_count = 0;
   auto t0 = std::chrono::steady_clock::now();
-  Mesh(hm, Pass::kCountVerticesAndTriangles, output, &vmap, &triangle_count, scale);
+  Mesh(hm, vertex_output, triangle_output, &vmap, &triangle_count, scale);
   auto t1 = std::chrono::steady_clock::now();
+  printf("Meshed in %.2f s\n", std::chrono::duration<double>(t1-t0).count());
   printf("mesh has %.2e triangles and %.2e vertices\n",
          (double)triangle_count, (double)vmap.size());
+  fclose(vertex_output);
+  fclose(triangle_output);
 
-  // Open output file
-  output = fopen(output_path, "w");
-  if (output == NULL) {
+  // Open header file
+  FILE *header_output = fopen("header.dat", "w");
+  if (header_output == NULL) {
     printf("Error opening output file\n");
     exit(1);
   }
 
   // Write header.
-  WriteHeader(output, (uint32_t)vmap.size(), triangle_count);
-
-  // Traverse the heightmap again but this time write it out to file.
-  vmap.clear();
-  auto t2 = std::chrono::steady_clock::now();
-  Mesh(hm, Pass::kVertexList, output, &vmap, &triangle_count, scale);
-  auto t3 = std::chrono::steady_clock::now();
-  Mesh(hm, Pass::kTriangleList, output, &vmap, &triangle_count, scale);
-  auto t4 = std::chrono::steady_clock::now();
-
-  printf("counted triangles in %.2f s\n", std::chrono::duration<double>(t1-t0).count());
-  printf("write vertices in %.2f s\n", std::chrono::duration<double>(t3-t2).count());
-  printf("write triangles in %.2f s\n", std::chrono::duration<double>(t4-t3).count());
+  WriteHeader(header_output, (uint32_t)vmap.size(), triangle_count);
 
   // Close output.
-  fclose(output);
+  fclose(header_output);
 }
 
 
 int32_t main(int32_t argc, char **argv) {
   const Settings config = ParseArgs(argc, argv);
   Heightmap hm{};
+  auto t0 = std::chrono::steady_clock::now();
   ReadHeightmap(config.input, &hm);
   DumpHeightmap(hm);
+  auto t1 = std::chrono::steady_clock::now();
+  printf("Read heightmap in %.2f s\n", std::chrono::duration<double>(t1-t0).count());
   const Scale scale = ComputeScale(config, hm);
-  HeightmapToPLY(hm, config.output, scale);
+  HeightmapToPLY(hm, scale);
 
   return 0;
 }
