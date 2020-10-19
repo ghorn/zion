@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string>
 
+#include "src/common/ply.hpp"
 #include "base.h"
 #include "cmdline.h"
 #include "heightmap.h"
@@ -148,7 +149,8 @@ int main(int argc, char **argv) {
 
     // write output file
     done = timed("writing output");
-    SaveBinarySTL(outFile, points, triangles);
+    //SaveBinarySTL(outFile, points, triangles);
+    SavePly(outFile, points, triangles);
     done();
 
     // show total elapsed time

@@ -1,1 +1,2 @@
-common --compilation_mode=opt
+build --compilation_mode=opt
+run --compilation_mode=opt

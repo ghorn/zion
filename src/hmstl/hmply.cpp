@@ -6,6 +6,7 @@
 
 #include "heightmap.hpp"
 #include "parse_args.hpp"
+#include "src/common/ply.hpp"
 
 #define TRIX_FACE_MAX 4294967295U
 
@@ -101,11 +102,7 @@ static void WriteTriangle(FILE * const vertex_output,
   (*triangle_count)++;
 
   // Write triangle header.
-  const uint8_t three = 3; // This triangle will have three vertices, big surprise.
-  if (fwrite(&three, 1, 1, triangle_output) != 1) {
-    fprintf(stderr, "Error writing 'three' as uint8_t\n");
-    exit(1);
-  }
+  WriteTriangleHeader(triangle_output);
 
   // Add each vertex to the hashmap if it doesn't exist.
   for (const glm::vec3 &vertex : vertices) {
@@ -120,10 +117,7 @@ static void WriteTriangle(FILE * const vertex_output,
       }
 
       // Write this new vertex to file.
-      if (fwrite(&vertex, 4, 3, vertex_output) != 3) {
-        fprintf(stderr, "Error writing vertex\n");
-        exit(1);
-      }
+      WriteVertex(vertex_output, vertex);
 
       // Insert vertex into hashmap
       vertex_index = static_cast<uint32_t>(vmap->size());
@@ -133,10 +127,7 @@ static void WriteTriangle(FILE * const vertex_output,
     }
 
     // write the vertex index to the triangle file
-    if (fwrite(&vertex_index, 4, 1, triangle_output) != 1) {
-      fprintf(stderr, "Error writing vertex index for triangle %u\n", *triangle_count);
-      exit(1);
-    }
+    WriteVertexIndex(triangle_output, vertex_index);
   }
 }
 
@@ -373,18 +364,6 @@ static void Mesh(const Heightmap &hm,
   }
 }
 
-static void WriteHeader(FILE * const output, const uint32_t vertex_count, const uint32_t triangle_count) {
-  fprintf(output, "ply\r\n");
-  fprintf(output, "format binary_little_endian 1.0\r\n");
-  fprintf(output, "element vertex %u\r\n", vertex_count);
-  fprintf(output, "property float x\r\n");
-  fprintf(output, "property float y\r\n");
-  fprintf(output, "property float z\r\n");
-  fprintf(output, "element face %u\r\n", triangle_count);
-  fprintf(output, "property list uchar uint vertex_indices\r\n");
-  fprintf(output, "end_header\r\n");
-}
-
 static void HeightmapToPLY(const Heightmap &hm,
                            const Scale &scale) {
   // Open output files
@@ -420,7 +399,7 @@ static void HeightmapToPLY(const Heightmap &hm,
   }
 
   // Write header.
-  WriteHeader(header_output, (uint32_t)vmap.size(), triangle_count);
+  WritePlyHeader(header_output, (uint32_t)vmap.size(), triangle_count);
 
   // Close output.
   fclose(header_output);

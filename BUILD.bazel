@@ -21,83 +21,126 @@ du -hs $@
 """,
 )
 
-decimation = 5
-trim = True
+decimations = [10, 20, 40]
+all_num_triangles = [500000, 1000000, 5000000]
 
-trim_suffix = "_trimmed" if trim else ""
-
-genrule(
-    name = "floating_blob_decim{}{}".format(decimation, trim_suffix),
-    tools = ["//src:pixel_data_to_floating_blob"],
-    srcs = [":pixel_data.dat"],
-    outs = ["floating_blob_decim{}{}.dat".format(decimation, trim_suffix)],
-    cmd ="""
+[
+    genrule(
+        name = "floating_blob_decim{}_{}".format(decimation, trim_suffix),
+        tools = ["//src:pixel_data_to_floating_blob"],
+        srcs = [":pixel_data.dat"],
+        outs = ["floating_blob_decim{}_{}.dat".format(decimation, trim_suffix)],
+        cmd ="""
 $(location //src:pixel_data_to_floating_blob) $< $@ --decimation {} {}
 du -hs $@
 """.format(decimation, ("--trim" if trim else "")),
-)
+    )
+    for decimation in decimations
+    for trim in [True, False]
+    for trim_suffix in ["trim" if trim else "notrim"]
+]
 
-# Turn the blob into a ply with hmply.
-genrule(
-    name="ply",
-    tools = ["//src:hmply"],
-    srcs = [":floating_blob_decim{}{}.dat".format(decimation, trim_suffix)],
-    outs = ["height_map_decim{}.ply".format(decimation)],
-    cmd = """
+# Turn the blob into a ply with hmm.
+[
+    [
+    genrule(
+        name="ply_hmm_decim{}_{}triangles_{}".format(decimation, num_triangles, trim_suffix),
+        tools = ["//src:hmm"],
+        srcs = [":floating_blob_decim{}_{}.dat".format(decimation, trim_suffix)],
+        outs = [ply_path],
+        cmd = """
+time $(location //src:hmm) -t {} $< $@
+du -hs $@
+""".format(num_triangles),
+    ),
+
+    genrule(
+        name="stl_hmm_{}".format(suffix),
+        tools = ["//meshlab:meshlab_server"],
+        srcs = [ply_path],
+        outs = ["hmm_{}.stl".format(suffix)],
+        local=True,
+        cmd = """
+DISPLAY=:0.0 $(location //meshlab:meshlab_server) -i $< -o $@
+du -hs $@
+""",
+    )
+    ]
+    for decimation in decimations
+    for trim in [True, False]
+    for num_triangles in all_num_triangles
+    for trim_suffix in ["trim" if trim else "notrim"]
+    for suffix in ["decim{}_{}triangles_{}".format(decimation, num_triangles, trim_suffix)]
+    for ply_path in ["hmm_decim{}_{}triangles_{}.ply".format(decimation, num_triangles, trim_suffix)]
+]
+
+
+
+# Turn the blob into a ply with hmstl.
+[
+    [
+    # Turn the blob into a ply with hmply., but only for coarse decimation.
+    genrule(
+        name="ply_hmstl_{}".format(suffix),
+        tools = ["//src:hmply"],
+        srcs = [":floating_blob_decim{}_{}.dat".format(decimation, trim_suffix)],
+        outs = ["hmstl_{}.ply".format(suffix)],
+        cmd = """
 time $(location //src:hmply) -i $< -b 0.25 -x 170
 >&2 du -hs header.dat vertices.dat triangles.dat
 >&2 echo "\nconcatenating files"
 time cat header.dat vertices.dat triangles.dat > $@
 rm header.dat vertices.dat triangles.dat
 du -hs $@
-""".format(decimation),
-)
-
-# Simplify the ply with meshlab.
-genrule(
-    name="simplified_ply",
-    tools = ["//meshlab:meshlab_server"],
-    srcs = [
-        "height_map_decim{}.ply".format(decimation),
-        "simplify.mlx",
-    ],
-    outs = ["height_map_decim{}_simplified.ply".format(decimation)],
-    cmd = """
-DISPLAY=:0.0 time $(location //meshlab:meshlab_server) -i $(location height_map_decim{}.ply) -o $@ -s $(location simplify.mlx)
-du -hs $@
-""".format(decimation),
-    local=True,
-    tags = ["manual"],
-)
-
-# Convert mesh to STL with meshlab.
-genrule(
-    name="stl",
-    tools = ["//meshlab:meshlab_server"],
-    srcs = [
-        "height_map_decim{}.ply".format(decimation),
-    ],
-    outs = ["height_map_decim{}.stl".format(decimation)],
-    cmd = """
+    """.format(decimation),
+    ),
+    genrule(
+        name="stl_hmstl_{}".format(suffix),
+        tools = ["//meshlab:meshlab_server"],
+        srcs = ["hmstl_{}.ply".format(suffix)],
+        outs = ["hmstl_{}.stl".format(suffix)],
+        local=True,
+        cmd = """
 DISPLAY=:0.0 $(location //meshlab:meshlab_server) -i $< -o $@
 du -hs $@
-""".format(decimation),
-    local=True,
-    tags = ["manual"],
-)
+""",
+    )
+    ]
+    for decimation in decimations if decimation >= 10
+    for trim in [True, False]
+    for trim_suffix in ["trim" if trim else "notrim"]
+    for suffix in ["decim{}_{}".format(decimation, trim_suffix)]
+]
 
-# Convert simplified mesh to STL with meshlab.
-genrule(
-    name="simplified_stl",
-    tools = ["//meshlab:meshlab_server"],
-    srcs = [
-        "height_map_decim{}_simplified.ply".format(decimation),
-    ],
-    outs = ["height_map_decim{}_simplified.stl".format(decimation)],
-    cmd = """
-DISPLAY=:0.0 $(location //meshlab:meshlab_server) -i $< -o $@
-du -hs $@
-""".format(decimation),
-    local=True,
-    tags = ["manual"],
-)
+## Simplify the ply with meshlab.
+#genrule(
+#    name="simplified_ply",
+#    tools = ["//meshlab:meshlab_server"],
+#    srcs = [
+#        "height_map_decim{}.ply".format(decimation),
+#        "simplify.mlx",
+#    ],
+#    outs = ["height_map_decim{}_simplified.ply".format(decimation)],
+#    cmd = """
+#DISPLAY=:0.0 time $(location //meshlab:meshlab_server) -i $(location height_map_decim{}.ply) -o $@ -s $(location simplify.mlx)
+#du -hs $@
+#""".format(decimation),
+#    local=True,
+#    tags = ["manual"],
+#)
+#
+## Convert simplified mesh to STL with meshlab.
+#genrule(
+#    name="simplified_stl",
+#    tools = ["//meshlab:meshlab_server"],
+#    srcs = [
+#        "height_map_decim{}_simplified.ply".format(decimation),
+#    ],
+#    outs = ["height_map_decim{}_simplified.stl".format(decimation)],
+#    cmd = """
+#DISPLAY=:0.0 $(location //meshlab:meshlab_server) -i $< -o $@
+#du -hs $@
+#""".format(decimation),
+#    local=True,
+#    tags = ["manual"],
+#)
