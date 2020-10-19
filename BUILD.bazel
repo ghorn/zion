@@ -29,7 +29,7 @@ genrule(
     srcs = [":pixel_data.dat"],
     outs = ["floating_blob_decim{}.dat".format(decimation)],
     cmd ="""
-$(location //src:pixel_data_to_floating_blob) $< $@ --decimation {}
+$(location //src:pixel_data_to_floating_blob) $< $@ --decimation {} --trim
 du -hs $@
 """.format(decimation),
 )

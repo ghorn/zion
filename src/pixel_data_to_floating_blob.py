@@ -15,11 +15,30 @@ def save_image(filename, image):
   image.tofile(f)
   f.close()
 
+def trim_nans(heightmap_data):
+  isnan = np.isnan(heightmap_data)
+
+  allnan_axis0 = np.all(isnan, axis=0)
+  allnan_axis1 = np.all(isnan, axis=1)
+
+  where_nonnan0 = np.squeeze(np.argwhere(~allnan_axis0))
+  where_nonnan1 = np.squeeze(np.argwhere(~allnan_axis1))
+
+  if where_nonnan0.size > 0:
+    heightmap_data = heightmap_data[where_nonnan1[0]:where_nonnan1[-1]+1, :]
+  if where_nonnan1.size > 0:
+    heightmap_data = heightmap_data[:, where_nonnan0[0]:where_nonnan0[-1]+1]
+
+  return heightmap_data
+
+
 def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('height_map_path', help='Input height map data path.')
   parser.add_argument('output_path', help='Output path for blob.')
   parser.add_argument('--decimation', type=int, help='Optional downsample factor.')
+  parser.add_argument('--trim', action='store_true')
+
   flags = parser.parse_args()
 
   # load data
@@ -32,6 +51,16 @@ def main():
   t0 = time.time()
   heightmap_data = heightmap_data.astype(np.float32)
   print('converted to 32 bit floats in {} seconds'.format(time.time() - t0))
+
+  if flags.trim:
+    #heightmap_data[:11036, 21793:] = np.nan
+    #heightmap_data[:12431, 23064:] = np.nan
+    heightmap_data[:12090, 22475:] = np.nan
+
+  # trim leading and trailing rows/cols that are all nans
+  t0 = time.time()
+  heightmap_data = trim_nans(heightmap_data)
+  print('trimming nans took {} s'.format(time.time() - t0))
 
   # downsample
   if flags.decimation:
