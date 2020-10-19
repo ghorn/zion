@@ -2,7 +2,8 @@
 #include <cassert>
 #include <chrono>
 #include <unordered_map>
-#include <map>
+#include <glm/glm.hpp>
+
 #include "heightmap.hpp"
 #include "parse_args.hpp"
 
@@ -47,45 +48,11 @@ inline void hash_combine(std::size_t & seed, const T & v)
     seed ^= hasher(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
 }
 
-struct vertex_t {
-  float x;
-  float y;
-  float z;
-  bool operator==(const vertex_t &other) const {
-    return
-      x == other.x &&
-      y == other.y &&
-      z == other.z;
-  }
-  bool operator!=(const vertex_t &other) const {
-    return
-      x != other.x ||
-      y != other.y ||
-      z != other.z;
-  }
-  bool operator<(const vertex_t &other) const {
-    if (x < other.x) {
-      return true;
-    } else if (x > other.x) {
-      return false;
-    }
-    if (y < other.y) {
-      return true;
-    } else if (y > other.y) {
-      return false;
-    }
-    if (z < other.z) {
-      return true;
-    }
-    return false;
-  }
-};
-
 namespace std {
   template <>
-  struct hash<vertex_t>
+  struct hash<glm::vec3>
   {
-    std::size_t operator()(const vertex_t& vertex) const
+    std::size_t operator()(const glm::vec3& vertex) const
     {
       std::size_t seed = 0;
       hash_combine(seed, vertex.x);
@@ -97,13 +64,12 @@ namespace std {
 }
 
 struct triangle_t {
-  vertex_t a;
-  vertex_t b;
-  vertex_t c;
+  glm::vec3 a;
+  glm::vec3 b;
+  glm::vec3 c;
 };
 
-using vertex_map_t = std::unordered_map<vertex_t, uint32_t>;
-//using vertex_map_t = std::map<vertex_t, uint32_t>;
+using vertex_map_t = std::unordered_map<glm::vec3, uint32_t>;
 
 static inline float LookupIndex(const Heightmap &hm, uint32_t x, uint32_t y) {
   return hm.data[(uint64_t)y * hm.width + (uint64_t)x];
@@ -126,7 +92,7 @@ static void WriteTriangle(FILE * const vertex_output,
                           vertex_map_t *const vmap,
                           uint32_t *const triangle_count,
                           const triangle_t &triangle) {
-  const vertex_t vertices[3] = {triangle.a, triangle.b, triangle.c};
+  const glm::vec3 vertices[3] = {triangle.a, triangle.b, triangle.c};
 
   if (*triangle_count == TRIX_FACE_MAX) {
     fprintf(stderr, "Too many triangles!!!\n");
@@ -142,7 +108,7 @@ static void WriteTriangle(FILE * const vertex_output,
   }
 
   // Add each vertex to the hashmap if it doesn't exist.
-  for (const vertex_t &vertex : vertices) {
+  for (const glm::vec3 &vertex : vertices) {
     auto search = vmap->find(vertex);
     uint32_t vertex_index = 0;
     if (search == vmap->end()) {
@@ -178,10 +144,10 @@ static void Wall(FILE * const vertex_output,
                  FILE * const triangle_output,
                  vertex_map_t *const vmap,
                  uint32_t * const triangle_count,
-                 const vertex_t &a,
-                 const vertex_t &b) {
-  vertex_t a0 = a;
-  vertex_t b0 = b;
+                 const glm::vec3 &a,
+                 const glm::vec3 &b) {
+  glm::vec3 a0 = a;
+  glm::vec3 b0 = b;
   triangle_t t1;
   triangle_t t2;
   a0.z = 0;
@@ -223,10 +189,10 @@ static void Surface(FILE * const vertex_output,
                     FILE * const triangle_output,
                     vertex_map_t *const vmap,
                     uint32_t * const triangle_count,
-                    const vertex_t &v1,
-                    const vertex_t &v2,
-                    const vertex_t &v3,
-                    const vertex_t &v4) {
+                    const glm::vec3 &v1,
+                    const glm::vec3 &v2,
+                    const glm::vec3 &v3,
+                    const glm::vec3 &v4) {
   triangle_t i, j;
 
   i.a = v4;
@@ -249,7 +215,7 @@ static void Mesh(const Heightmap &hm,
                  const Scale &scale) {
   uint32_t x, y;
   float az, bz, cz, dz, ez, fz, gz, hz;
-  vertex_t vp, v1, v2, v3, v4;
+  glm::vec3 vp, v1, v2, v3, v4;
 
   for (y = 0; y < hm.height; y++) {
     for (x = 0; x < hm.width; x++) {
@@ -367,7 +333,7 @@ static void Mesh(const Heightmap &hm,
       v4.z = avgnonneg(hz, vp.z, fz, gz);
 
       // Scale XY coordinates.
-      for (vertex_t *vert : {&vp, &v1, &v2, &v3, &v4}) {
+      for (glm::vec3 *vert : {&vp, &v1, &v2, &v3, &v4}) {
         vert->x *= scale.xy_scale;
         vert->y *= scale.xy_scale;
       }
