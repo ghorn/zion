@@ -21,8 +21,18 @@ du -hs $@
 """,
 )
 
-decimations = [10, 20, 40]
-all_num_triangles = [500000, 1000000, 5000000]
+decimations = [
+    1,
+    #10, 20, 40,
+]
+all_num_triangles = [
+    (500000, "100k"),
+    (500000, "500k"),
+    (1000000, "1m"),
+    (5000000, "5m"),
+    (10000000, "10m"),
+    (15000000, "15m"),
+]
 
 [
     genrule(
@@ -44,7 +54,7 @@ du -hs $@
 [
     [
     genrule(
-        name="ply_hmm_decim{}_{}triangles_{}".format(decimation, num_triangles, trim_suffix),
+        name="ply_hmm_decim{}_{}_triangles_{}".format(decimation, num_triangles_string, trim_suffix),
         tools = ["//src:hmm"],
         srcs = [":floating_blob_decim{}_{}.dat".format(decimation, trim_suffix)],
         outs = [ply_path],
@@ -80,10 +90,10 @@ du -hs $@
     ]
     for decimation in decimations
     for trim in [True, False]
-    for num_triangles in all_num_triangles
+    for num_triangles, num_triangles_string in all_num_triangles
     for trim_suffix in ["trim" if trim else "notrim"]
-    for suffix in ["decim{}_{}triangles_{}".format(decimation, num_triangles, trim_suffix)]
-    for ply_path in ["hmm_decim{}_{}triangles_{}.ply".format(decimation, num_triangles, trim_suffix)]
+    for suffix in ["decim{}_{}_triangles_{}".format(decimation, num_triangles_string, trim_suffix)]
+    for ply_path in ["hmm_decim{}_{}_triangles_{}.ply".format(decimation, num_triangles_string, trim_suffix)]
 ]
 
 
