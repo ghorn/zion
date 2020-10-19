@@ -49,7 +49,7 @@ du -hs $@
         srcs = [":floating_blob_decim{}_{}.dat".format(decimation, trim_suffix)],
         outs = [ply_path],
         cmd = """
-time $(location //src:hmm) -t {} $< $@
+time $(location //src:hmm) -t {} --border-size 100 --border-height 0 $< $@
 du -hs $@
 """.format(num_triangles),
     ),
@@ -64,7 +64,19 @@ du -hs $@
 DISPLAY=:0.0 $(location //meshlab:meshlab_server) -i $< -o $@
 du -hs $@
 """,
-    )
+    ),
+
+    genrule(
+        name="stl_hmm_{}_nobase".format(suffix),
+        tools = ["//src:trim_stl"],
+        srcs = ["hmm_{}.stl".format(suffix)],
+        outs = ["hmm_{}_nobase.stl".format(suffix)],
+        local=True,
+        cmd = """
+$(location //src:trim_stl) -i $< -o $@
+du -hs $@
+""",
+    ),
     ]
     for decimation in decimations
     for trim in [True, False]
