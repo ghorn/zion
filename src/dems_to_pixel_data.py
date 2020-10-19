@@ -107,17 +107,6 @@ class Dem():
     surf = ax.plot_surface(X, Y, Z, cmap=cm.coolwarm,
                            linewidth=0, antialiased=False)
 
-def save_image(filename, image):
-  nx = image.shape[0]
-  ny = image.shape[1]
-
-  f = open(filename, 'wb')
-  f.write(nx.to_bytes(8, byteorder='little', signed=True))
-  f.write(ny.to_bytes(8, byteorder='little', signed=True))
-  image.tofile(f)
-  #f.write(image.tobytes())
-  f.close()
-
 def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('dem_paths', help='Input DEM files, comma separated.')

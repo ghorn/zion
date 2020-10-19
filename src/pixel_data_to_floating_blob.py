@@ -10,8 +10,8 @@ def save_image(filename, image):
   ny = image.shape[1]
 
   f = open(filename, 'wb')
-  f.write(nx.to_bytes(8, byteorder='little', signed=True))
-  f.write(ny.to_bytes(8, byteorder='little', signed=True))
+  f.write(nx.to_bytes(4, byteorder='little', signed=True))
+  f.write(ny.to_bytes(4, byteorder='little', signed=True))
   image.tofile(f)
   f.close()
 

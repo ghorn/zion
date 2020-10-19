@@ -4,5 +4,7 @@ The command
 
 should download, build, and run everything.
 
-Thanks to https://github.com/anoved/hmstl for the heightmap to stl converter.
-This is a __heavily__ modified version of that.
+# Third-party acknowledgements
+
+Thanks to https://github.com/anoved/hmstl and https://github.com/fogleman/hmm.
+This includes pretty heavily hacked versions of those codes.

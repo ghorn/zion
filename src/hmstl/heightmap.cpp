@@ -3,6 +3,7 @@
 #include <cmath>
 
 #include "heightmap.hpp"
+#include "src/common/heightmap_data.hpp"
 
 void ScanHeightmap(Heightmap *hm) {
   if (hm == NULL) {
@@ -30,29 +31,8 @@ void ScanHeightmap(Heightmap *hm) {
   hm->max = max;
 }
 
-void ReadHeightmapData(const std::string &path, int64_t *nx, int64_t *ny, std::vector<float> *image) {
-  std::ifstream image_file(path, std::ios::in|std::ios::binary);
-  if (!image_file.is_open()) {
-    fprintf(stderr, "Failed to open image.\n");
-    std::exit(1);
-  }
-
-  image_file.read(reinterpret_cast<char*>(ny), 8);
-  image_file.read(reinterpret_cast<char*>(nx), 8);
-  fprintf(stderr, "Reading (%ld x %ld) doubles...\n", *nx, *ny);
-
-  image->resize(static_cast<uint64_t>(*nx) * static_cast<uint64_t>(*ny), 0);
-  image_file.read(reinterpret_cast<char*>(image->data()), (*nx)*(*ny)*4);
-
-  if (!image_file) {
-    fprintf(stderr, "error: only %lu bytes could be read\n", image_file.gcount());
-    std::exit(1);
-  }
-  image_file.close();
-}
-
 void ReadHeightmap(const std::string &path, Heightmap * const hm) {
-  int64_t width, height;
+  int32_t width, height;
   ReadHeightmapData(path, &width, &height, &(hm->data));
 
   hm->width = (uint32_t)width;

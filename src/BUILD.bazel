@@ -95,16 +95,58 @@ c_opts = [
     "-Wformat-nonliteral",
 ]
 
+cc_library(
+    name = "common",
+    srcs = [
+        "common/heightmap_data.cpp",
+        "common/heightmap_data.hpp",
+    ],
+    copts = cxx_opts,
+    visibility = ["//visibility:public"],
+)
+
 # convert data blob to PLY mesh
 cc_binary(
     name = "hmply",
     srcs = [
-        "hmply.cpp",
-        "heightmap.cpp",
-        "heightmap.hpp",
-        "parse_args.cpp",
-        "parse_args.hpp",
+        "hmstl/hmply.cpp",
+        "hmstl/heightmap.cpp",
+        "hmstl/heightmap.hpp",
+        "hmstl/parse_args.cpp",
+        "hmstl/parse_args.hpp",
     ],
     copts = cxx_opts,
     visibility = ["//visibility:public"],
+    deps = [":common"],
+)
+
+# convert data blob to PLY mesh
+cc_binary(
+    name = "hmm",
+    srcs = [
+        "hmm/base.cpp",
+        "hmm/base.h",
+        "hmm/blur.cpp",
+        "hmm/blur.h",
+        "hmm/cmdline.h",
+        "hmm/heightmap.cpp",
+        "hmm/heightmap.h",
+        "hmm/main.cpp",
+        "hmm/stl.cpp",
+        "hmm/stl.h",
+        "hmm/triangulator.cpp",
+        "hmm/triangulator.h",
+    ],
+    copts = cxx_opts + [
+        "-Wno-float-conversion",
+        "-Wno-conversion",
+        "-Wno-sign-conversion",
+        "-Wno-sign-compare",
+        "-Wno-useless-cast",
+        "-Wno-shadow",
+        "-Wno-comment",
+        "-Wno-double-promotion",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [":common"],
 )
