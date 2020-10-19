@@ -22,23 +22,26 @@ du -hs $@
 )
 
 decimation = 5
+trim = True
+
+trim_suffix = "_trimmed" if trim else ""
 
 genrule(
-    name = "floating_blob",
+    name = "floating_blob_decim{}{}".format(decimation, trim_suffix),
     tools = ["//src:pixel_data_to_floating_blob"],
     srcs = [":pixel_data.dat"],
-    outs = ["floating_blob_decim{}.dat".format(decimation)],
+    outs = ["floating_blob_decim{}{}.dat".format(decimation, trim_suffix)],
     cmd ="""
-$(location //src:pixel_data_to_floating_blob) $< $@ --decimation {} --trim
+$(location //src:pixel_data_to_floating_blob) $< $@ --decimation {} {}
 du -hs $@
-""".format(decimation),
+""".format(decimation, ("--trim" if trim else "")),
 )
 
 # Turn the blob into a ply with hmply.
 genrule(
     name="ply",
     tools = ["//src:hmply"],
-    srcs = [":floating_blob_decim{}.dat".format(decimation)],
+    srcs = [":floating_blob_decim{}{}.dat".format(decimation, trim_suffix)],
     outs = ["height_map_decim{}.ply".format(decimation)],
     cmd = """
 time $(location //src:hmply) -i $< -b 0.25 -x 170
