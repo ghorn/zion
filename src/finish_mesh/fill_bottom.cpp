@@ -23,7 +23,7 @@ static void GetBottomEdges(const std::vector<glm::vec3> &vertices,
     // If two of them have z==0 then it's a bottom edge.
     for (int k = 0; k < 3; k++) {
       const int vertex_index = triangle[k];
-      const glm::vec3 vertex = vertices[(uint64_t)vertex_index];
+      const glm::vec3 vertex = vertices.at((uint64_t)vertex_index);
       if (vertex.z == 0) {
         if (num_zero_z < 2) {
           edge[(int)num_zero_z] = vertex_index;
@@ -86,7 +86,7 @@ static glm::ivec2 OtherEdge(const glm::ivec2 edge,
   std::vector<glm::ivec2> edges = edge_pool.at(other_node);
   edges = FilterEdge(edge, edges);
   if (edges.size() == 1) {
-    return edges[0];
+    return edges.at(0);
   }
   fprintf(stderr, "Error: following edge is connected to a SECOND non-manifold vertex\n");
   std::exit(1);
@@ -182,26 +182,26 @@ glm::ivec2 ChooseNextEdge(const int current_node,
                           const std::vector<glm::vec3> &vertices) {
   // Usually there is only one edge left.
   if (connected_edges.size() == 1) {
-    return connected_edges[0];
+    return connected_edges.at(0);
   }
 
   if (connected_edges.size() == 3) {
     fprintf(stderr, "Oh shit, three connected edges [(%d, %d), (%d, %d), (%d, %d)].",
-            connected_edges[0][0],
-            connected_edges[0][1],
-            connected_edges[1][0],
-            connected_edges[1][1],
-            connected_edges[2][0],
-            connected_edges[2][1]);
+            connected_edges.at(0)[0],
+            connected_edges.at(0)[1],
+            connected_edges.at(1)[0],
+            connected_edges.at(1)[1],
+            connected_edges.at(2)[0],
+            connected_edges.at(2)[1]);
 
     fprintf(stderr, " That's a non-manifold vertex. Time to throw a hail mary...\n");
 
     // try to filter the connected_edges
     return ResolveNonmanifoldVertex(current_node,
                                     previous_edge,
-                                    connected_edges[0],
-                                    connected_edges[1],
-                                    connected_edges[2],
+                                    connected_edges.at(0),
+                                    connected_edges.at(1),
+                                    connected_edges.at(2),
                                     edge_pool,
                                     vertices);
   }
@@ -279,7 +279,7 @@ static std::vector<glm::ivec3> Earcut(const std::vector<int> &sorted_edges,
   std::vector<std::array<float, 2> > polygon;
   std::vector<int> backwards_map;
   for (const int node : sorted_edges) {
-    const glm::vec3 vertex = vertices[(uint64_t)node];
+    const glm::vec3 vertex = vertices.at((uint64_t)node);
     backwards_map.push_back(node);
     polygon.push_back({vertex.x, vertex.y});
   }
@@ -296,8 +296,8 @@ static std::vector<glm::ivec3> Earcut(const std::vector<int> &sorted_edges,
   for (uint64_t k=0; k < earcut_bottom_triangles.size() / 3; k++) {
     glm::ivec3 new_triangle;
     for (int j=0; j<3; j++) {
-      const int mapbox_node_index = earcut_bottom_triangles[3*k + (uint64_t)j];
-      const int node_index = backwards_map[(uint64_t)mapbox_node_index];
+      const int mapbox_node_index = earcut_bottom_triangles.at(3*k + (uint64_t)j);
+      const int node_index = backwards_map.at((uint64_t)mapbox_node_index);
       new_triangle[j] = node_index;
     }
     bottom_triangles.push_back(new_triangle);
@@ -320,17 +320,17 @@ static void WriteMatplotlibOutput(const std::string &output_path,
   fprintf(output, "import matplotlib.pyplot as plt\n");
   fprintf(output, "edges = [");
   for (const glm::ivec2 &edge : bottom_edges) {
-    const glm::vec2 v0 = vertices[(uint64_t)edge[0]];
-    const glm::vec2 v1 = vertices[(uint64_t)edge[1]];
+    const glm::vec2 v0 = vertices.at((uint64_t)edge[0]);
+    const glm::vec2 v1 = vertices.at((uint64_t)edge[1]);
     fprintf(output, "((%.9f, %.9f), (%.9f, %.9f)), ", (double)v0.x, (double)v0.y, (double)v1.x, (double)v1.y);
   }
   fprintf(output, "]\n");
 
   fprintf(output, "triangles = [");
   for (const glm::ivec3 &triangle : bottom_triangles) {
-    const glm::vec2 v0 = vertices[(uint64_t)triangle[0]];
-    const glm::vec2 v1 = vertices[(uint64_t)triangle[1]];
-    const glm::vec2 v2 = vertices[(uint64_t)triangle[2]];
+    const glm::vec2 v0 = vertices.at((uint64_t)triangle[0]);
+    const glm::vec2 v1 = vertices.at((uint64_t)triangle[1]);
+    const glm::vec2 v2 = vertices.at((uint64_t)triangle[2]);
     fprintf(output, "((%.9f, %.9f), (%.9f, %.9f), (%.9f, %.9f)), ",
            (double)v0.x, (double)v0.y,
            (double)v1.x, (double)v1.y,
