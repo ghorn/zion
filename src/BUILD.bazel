@@ -60,6 +60,7 @@ cxx_opts = [
     "-Wnon-virtual-dtor",
     #"-Wold-style-cast",
     "-Woverloaded-virtual",
+    "-fdiagnostics-color=always",
 ]
 
 c_opts = [
@@ -98,6 +99,7 @@ c_opts = [
 cc_library(
     name = "common",
     srcs = [
+        "common/hash.hpp",
         "common/heightmap_data.cpp",
         "common/heightmap_data.hpp",
         "common/ply.cpp",
@@ -153,12 +155,41 @@ cc_binary(
     deps = [":common"],
 )
 
-# convert data blob to PLY mesh
 cc_binary(
-    name = "trim_stl",
+    name = "trim_bottom",
     srcs = [
-        "trim_stl/main.cpp",
+        "finish_mesh/trim_bottom.cpp",
     ],
     copts = cxx_opts,
     visibility = ["//visibility:public"],
+    deps = [":common"],
+)
+
+cc_binary(
+    name = "fill_bottom",
+    srcs = [
+        "finish_mesh/fill_bottom.cpp",
+    ],
+    copts = cxx_opts + ["-Wno-comment"],
+    visibility = ["//visibility:public"],
+    deps = [":common", ":earcut"],
+)
+
+cc_library(
+    name = "earcut",
+    hdrs = [
+        "finish_mesh/earcut.hpp",
+    ],
+    includes = ["."],
+)
+
+
+cc_binary(
+    name = "roundtrip_ply",
+    srcs = [
+        "finish_mesh/roundtrip_ply.cpp",
+    ],
+    copts = cxx_opts,
+    visibility = ["//visibility:public"],
+    deps = [":common"],
 )

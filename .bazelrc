@@ -1,2 +1,5 @@
 build --compilation_mode=opt
 run --compilation_mode=opt
+
+# avoid downloading datasets twice?
+#build --distinct_host_configuration=false

@@ -23,15 +23,17 @@ du -hs $@
 
 decimations = [
     1,
-    #10, 20, 40,
+    #3,
+    #5,
+    #10, #20, 40,
 ]
 all_num_triangles = [
-    (500000, "100k"),
-    (500000, "500k"),
-    (1000000, "1m"),
-    (5000000, "5m"),
-    (10000000, "10m"),
-    (15000000, "15m"),
+      (100000, "100k"),
+      (500000, "500k"),
+     (1000000,   "1m"),
+     (5000000,   "5m"),
+    (10000000,  "10m"),
+    (15000000,  "15m"),
 ]
 
 [
@@ -54,7 +56,7 @@ du -hs $@
 [
     [
     genrule(
-        name="ply_hmm_decim{}_{}_triangles_{}".format(decimation, num_triangles_string, trim_suffix),
+        name = "ply_hmm_decim{}_{}_triangles_{}".format(decimation, num_triangles_string, trim_suffix),
         tools = ["//src:hmm"],
         srcs = [":floating_blob_decim{}_{}.dat".format(decimation, trim_suffix)],
         outs = [ply_path],
@@ -64,26 +66,73 @@ du -hs $@
 """.format(num_triangles),
     ),
 
+    # execute roundtrip test
+    sh_test(
+        name="test_roundtrip_{}".format(suffix),
+        srcs = ["test_roundtrip_ply.sh"],
+        data = [ply_path, "//src:roundtrip_ply"],
+        args = ["$(location //src:roundtrip_ply)", "$(location " + ply_path + ")"],
+    ),
+
     genrule(
-        name="stl_hmm_{}".format(suffix),
-        tools = ["//meshlab:meshlab_server"],
-        srcs = [ply_path],
-        outs = ["hmm_{}.stl".format(suffix)],
-        local=True,
+        name="ply_hmm_{}_nobase".format(suffix),
+        tools = ["//src:trim_bottom"],
+        srcs = ["hmm_{}.ply".format(suffix)],
+        outs = ["hmm_{}_nobase.ply".format(suffix)],
         cmd = """
-DISPLAY=:0.0 $(location //meshlab:meshlab_server) -i $< -o $@
+$(location //src:trim_bottom) $< $@
 du -hs $@
 """,
     ),
 
     genrule(
-        name="stl_hmm_{}_nobase".format(suffix),
-        tools = ["//src:trim_stl"],
-        srcs = ["hmm_{}.stl".format(suffix)],
-        outs = ["hmm_{}_nobase.stl".format(suffix)],
+        name="ply_hmm_{}_with_base".format(suffix),
+        tools = ["//src:fill_bottom"],
+        srcs = ["hmm_{}_nobase.ply".format(suffix)],
+        outs = ["hmm_{}_with_base.ply".format(suffix), "bottom_triangles_{}.py".format(suffix)],
+        cmd = """
+$(location //src:fill_bottom) $< $(OUTS)
+du -hs $(OUTS)
+""",
+    ),
+
+    py_binary(
+        name = "plot_bottom_triangles_{}".format(suffix),
+        main = "bottom_triangles_{}.py".format(suffix),
+        srcs = ["bottom_triangles_{}.py".format(suffix)],
+        srcs_version = "PY3",
+        python_version = "PY3",
+    ),
+
+    genrule(
+        name="bottom_triangles_picture_{}".format(suffix),
+        tools = ["plot_bottom_triangles_{}".format(suffix)],
+        outs = ["bottom_triangles_{}.png".format(suffix)],
+        cmd = """
+DISPLAY=:0.0 $(location plot_bottom_triangles_{}) $@
+""".format(suffix),
+    ),
+
+#    genrule(
+#        name="stl_hmm_{}".format(suffix),
+#        tools = ["//meshlab:meshlab_server"],
+#        srcs = ["hmm_{}_nobase.ply".format(suffix)],
+#        outs = ["hmm_{}.stl".format(suffix)],
+#        local=True,
+#        cmd = """
+#DISPLAY=:0.0 $(location //meshlab:meshlab_server) -i $< -o $@
+#du -hs $@
+#""",
+#    ),
+
+    genrule(
+        name="stl_hmm_{}".format(suffix),
+        tools = ["//meshlab:meshlab_server"],
+        srcs = ["hmm_{}_with_base.ply".format(suffix)],
+        outs = ["hmm_{}.stl".format(suffix)],
         local=True,
         cmd = """
-$(location //src:trim_stl) -i $< -o $@
+DISPLAY=:0.0 $(location //meshlab:meshlab_server) -i $< -o $@
 du -hs $@
 """,
     ),
@@ -93,7 +142,7 @@ du -hs $@
     for num_triangles, num_triangles_string in all_num_triangles
     for trim_suffix in ["trim" if trim else "notrim"]
     for suffix in ["decim{}_{}_triangles_{}".format(decimation, num_triangles_string, trim_suffix)]
-    for ply_path in ["hmm_decim{}_{}_triangles_{}.ply".format(decimation, num_triangles_string, trim_suffix)]
+    for ply_path in ["hmm_{}.ply".format(suffix)]
 ]
 
 

@@ -13,3 +13,6 @@ void WriteVertexIndex(FILE * const output, const uint32_t vertex_index);
 void SavePly(const std::string &path,
              const std::vector<glm::vec3> &points,
              const std::vector<glm::ivec3> &triangles);
+void LoadPly(const std::string &path,
+             std::vector<glm::vec3> *points,
+             std::vector<glm::ivec3> *triangles);
