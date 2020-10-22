@@ -38,7 +38,7 @@ static void GetBottomEdges(const std::vector<glm::vec3> &vertices,
 }
 
 template <class K, class V>
-void InsertOrAppend(std::unordered_map<K, std::vector<V> > *map,
+static void InsertOrAppend(std::unordered_map<K, std::vector<V> > *map,
                     const K &key,
                     const V &value) {
   // see if the key is in the map yet
@@ -79,19 +79,6 @@ static int OtherNode(const glm::ivec2 edge, const int node) {
   std::exit(1);
 }
 
-static glm::ivec2 OtherEdge(const glm::ivec2 edge,
-                            const int node,
-                            const std::unordered_map<int, std::vector<glm::ivec2> > &edge_pool) {
-  const int other_node = OtherNode(edge, node);
-  std::vector<glm::ivec2> edges = edge_pool.at(other_node);
-  edges = FilterEdge(edge, edges);
-  if (edges.size() == 1) {
-    return edges.at(0);
-  }
-  fprintf(stderr, "Error: following edge is connected to a SECOND non-manifold vertex\n");
-  std::exit(1);
-}
-
 static inline glm::vec2 ToXy(const glm::vec3 v3) {
   return {v3.x, v3.y};
 }
@@ -114,24 +101,10 @@ static glm::vec2 Normalize(const glm::vec2 &vec) {
 }
 
 
-static glm::ivec2 TighterEdge(const int current_node,
-                              const glm::ivec2 current_edge,
-                              const glm::ivec2 candidate0_edge,
-                              const glm::ivec2 candidate1_edge,
-                              const std::vector<glm::vec3> &vertices) {
-  const glm::vec2 nominal_direction = IntoNode(current_edge, current_node, vertices);
-  const glm::vec2 candidate0 = Normalize(IntoNode(candidate0_edge, current_node, vertices));
-  const glm::vec2 candidate1 = Normalize(IntoNode(candidate1_edge, current_node, vertices));
-
-  const float dot0 = glm::dot(nominal_direction, candidate0);
-  const float dot1 = glm::dot(nominal_direction, candidate1);
-
-  if (dot0 > dot1) {
-    return candidate0_edge;
-  }
-
-  return candidate1_edge;
-}
+enum class Winding {
+  kRight,
+  kLeft
+};
 
 // Select the correct next edge edge when there are multiple choices.
 // Looks like:
@@ -142,77 +115,80 @@ static glm::ivec2 TighterEdge(const int current_node,
 //      /     \
 //     x---3---x
 //
-// 1 - current edge
+// 1 - previous edge
 // 2,4,5 - candidate edges connected to common node
 // 3 - hidden edge connected 2,4
-//
-// The goal is to select edge "2". First we eliminate edge "5"
-// by detecting that "2" and "4" share a common edge "3".
-// Then finally we detect that "2" has a smaller angle relative to "1" than "4" does,
-// so it must be "2".
 static glm::ivec2 ResolveNonmanifoldVertex(const int current_node,
                                            const glm::ivec2 previous_edge,
-                                           ///const std::vector<glm::ivec2> &connected_edges,
-                                           const glm::ivec2 candidate0,
-                                           const glm::ivec2 candidate1,
-                                           const glm::ivec2 candidate2,
-                                           const std::unordered_map<int, std::vector<glm::ivec2> > &edge_pool,
-                                           const std::vector<glm::vec3> &vertices) {
-  const glm::ivec2 following_edge0 = OtherEdge(candidate0, current_node, edge_pool);
-  const glm::ivec2 following_edge1 = OtherEdge(candidate1, current_node, edge_pool);
-  const glm::ivec2 following_edge2 = OtherEdge(candidate2, current_node, edge_pool);
+                                           const std::vector<glm::ivec2> &connected_edges,
+                                           //const glm::ivec2 edge2,
+                                           //const glm::ivec2 edge4,
+                                           //const glm::ivec2 edge5,
+                                           const std::vector<glm::vec3> &vertices,
+                                           const Winding winding) {
 
-  if (following_edge0 == following_edge1) {
-    return TighterEdge(current_node, previous_edge, candidate0, candidate1, vertices);
+  const glm::vec2 v0 = Normalize(IntoNode(previous_edge, current_node, vertices));
+  glm::ivec2 leftmost;
+  float best_angle;
+  for (uint64_t k = 0; k < connected_edges.size(); k++) {
+    const glm::ivec2 candidate_edge = connected_edges.at(k);
+    const glm::vec2 vk = -Normalize(IntoNode(candidate_edge, current_node, vertices));
+    float angle = acosf(glm::dot(v0, vk));
+    const float cross_product = v0.x*vk.y - v0.y*vk.x;
+    if (cross_product > 0) {
+      angle *= -1;
+    }
+    if (winding == Winding::kLeft) {
+      angle *= -1;
+    }
+    if ((k == 0) || angle < best_angle) {
+      best_angle = angle;
+      leftmost = candidate_edge;
+    }
   }
-  if (following_edge0 == following_edge2) {
-    return TighterEdge(current_node, previous_edge, candidate0, candidate2, vertices);
-  }
-  if (following_edge1 == following_edge2) {
-    return TighterEdge(current_node, previous_edge, candidate1, candidate2, vertices);
-  }
-  fprintf(stderr, "Error: Unable to resolve a non-manifold vertex with a hail mary\n");
-  exit(1);
+  return leftmost;
 }
 
-glm::ivec2 ChooseNextEdge(const int current_node,
-                          const glm::ivec2 previous_edge,
-                          const std::vector<glm::ivec2> &connected_edges,
-                          const std::unordered_map<int, std::vector<glm::ivec2> > &edge_pool,
-                          const std::vector<glm::vec3> &vertices) {
+static glm::ivec2 ChooseNextEdge(const int current_node,
+                                 const glm::ivec2 previous_edge,
+                                 const std::vector<glm::ivec2> &connected_edges,
+                                 const std::vector<glm::vec3> &vertices,
+                                 const Winding winding) {
   // Usually there is only one edge left.
+  // Ez.
   if (connected_edges.size() == 1) {
     return connected_edges.at(0);
   }
 
   if (connected_edges.size() == 3) {
-    fprintf(stderr, "Oh shit, three connected edges [(%d, %d), (%d, %d), (%d, %d)].",
-            connected_edges.at(0)[0],
-            connected_edges.at(0)[1],
-            connected_edges.at(1)[0],
-            connected_edges.at(1)[1],
-            connected_edges.at(2)[0],
-            connected_edges.at(2)[1]);
-
-    fprintf(stderr, " That's a non-manifold vertex. Time to throw a hail mary...\n");
+    //fprintf(stderr, "Oh shit, three connected edges [(%d, %d), (%d, %d), (%d, %d)].",
+    //        connected_edges.at(0)[0],
+    //        connected_edges.at(0)[1],
+    //        connected_edges.at(1)[0],
+    //        connected_edges.at(1)[1],
+    //        connected_edges.at(2)[0],
+    //        connected_edges.at(2)[1]);
+    //
+    //fprintf(stderr, " That's a non-manifold vertex. Time to throw a hail mary...\n");
 
     // try to filter the connected_edges
     return ResolveNonmanifoldVertex(current_node,
                                     previous_edge,
-                                    connected_edges.at(0),
-                                    connected_edges.at(1),
-                                    connected_edges.at(2),
-                                    edge_pool,
-                                    vertices);
+                                    connected_edges,
+                                    //connected_edges.at(0),
+                                    //connected_edges.at(1),
+                                    //connected_edges.at(2),
+                                    vertices,
+                                    winding);
   }
 
   fprintf(stderr, "Got a weird and unhandled number of candidate edges %lu.\n", connected_edges.size());
   std::exit(1);
 }
 
-void EraseEdgeFromNode(std::unordered_map<int, std::vector<glm::ivec2> > *edge_pool,
-                       const glm::ivec2 &edge,
-                       const int node) {
+static void EraseEdgeFromNode(std::unordered_map<int, std::vector<glm::ivec2> > *edge_pool,
+                              const glm::ivec2 &edge,
+                              const int node) {
   auto it = edge_pool->find(node);
   if (it == edge_pool->end()) {
     fprintf(stderr, "Error! Can't find node (%d) to erase!\n", node);
@@ -222,14 +198,15 @@ void EraseEdgeFromNode(std::unordered_map<int, std::vector<glm::ivec2> > *edge_p
   edge_pool->insert_or_assign(node, FilterEdge(edge, it->second));
 }
 
-void EraseEdge(std::unordered_map<int, std::vector<glm::ivec2> > *edge_pool, const glm::ivec2 &edge) {
+static void EraseEdge(std::unordered_map<int, std::vector<glm::ivec2> > *edge_pool, const glm::ivec2 &edge) {
   // The edge will be here twice, once for each node.
   EraseEdgeFromNode(edge_pool, edge, edge[0]);
   EraseEdgeFromNode(edge_pool, edge, edge[1]);
 }
 
-std::vector<int> SortEdges(const std::vector<glm::ivec2> &bottom_edges,
-                           const std::vector<glm::vec3> &vertices) {
+static std::vector<int> SortEdgesTurningOneWay(const std::vector<glm::ivec2> &bottom_edges,
+                                               const std::vector<glm::vec3> &vertices,
+                                               const Winding winding) {
   // Edge pool is a map from each vertex to (initially) the two edges which containt that vertex.
   std::unordered_map<int, std::vector<glm::ivec2> > edge_pool;
   for (const glm::ivec2 &edge : bottom_edges) {
@@ -254,7 +231,8 @@ std::vector<int> SortEdges(const std::vector<glm::ivec2> &bottom_edges,
     }
 
     // Choose next edge from among edges connected to this node.
-    const glm::ivec2 next_edge = ChooseNextEdge(current_node, previous_edge, connected_edges, edge_pool, vertices);
+    const glm::ivec2 next_edge =
+      ChooseNextEdge(current_node, previous_edge, connected_edges, vertices, winding);
     EraseEdge(&edge_pool, next_edge);
 
     // Get the node on the other side of this edge.
@@ -265,13 +243,30 @@ std::vector<int> SortEdges(const std::vector<glm::ivec2> &bottom_edges,
     sorted_nodes.push_back(current_node);
   }
 
-  if (sorted_nodes.size() != bottom_edges.size()) {
-    fprintf(stderr, "Sorted nodes size %lu != bottom edges size %lu\n",
-            sorted_nodes.size(),
-            bottom_edges.size());
-    std::exit(1);
-  }
   return sorted_nodes;
+}
+
+static std::vector<int> SortEdges(const std::vector<glm::ivec2> &bottom_edges,
+                                  const std::vector<glm::vec3> &vertices) {
+  const std::vector<int> left_sorted_nodes = SortEdgesTurningOneWay(bottom_edges, vertices, Winding::kLeft);
+  if (left_sorted_nodes.size() == bottom_edges.size()) {
+    return left_sorted_nodes;
+  }
+
+  const std::vector<int> right_sorted_nodes = SortEdgesTurningOneWay(bottom_edges, vertices, Winding::kRight);
+  if (right_sorted_nodes.size() == bottom_edges.size()) {
+    return right_sorted_nodes;
+  }
+
+  fprintf(stderr, "Unable to sort edges with the left/right heuristic\n");
+  fprintf(stderr, "There are %lu edges to sort\n", bottom_edges.size());
+  fprintf(stderr, "Going left produced %lu edges\n", left_sorted_nodes.size());
+  fprintf(stderr, "Going right produced %lu edges\n", right_sorted_nodes.size());
+  //std::exit(1);
+  if (right_sorted_nodes.size() > left_sorted_nodes.size()) {
+    return right_sorted_nodes;
+  }
+  return left_sorted_nodes;
 }
 
 static std::vector<glm::ivec3> Earcut(const std::vector<int> &sorted_edges,
