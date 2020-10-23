@@ -22,8 +22,8 @@ int main(int argc, char **argv) {
     p.add<float>("error", 'e', "maximum triangulation error", false, 0.001);
     p.add<int>("triangles", 't', "maximum number of triangles", false, 0);
     p.add<int>("points", 'p', "maximum number of vertices", false, 0);
+    p.add<float>("zoffset_fraction", '\0', "base fraction", false, -1);
     p.add<float>("base", 'b', "solid base height", false, 0);
-    p.add("level", '\0', "auto level input to full grayscale range");
     p.add("invert", '\0', "invert heightmap");
     p.add<int>("blur", '\0', "gaussian blur sigma", false, 0);
     p.add<float>("gamma", '\0', "gamma curve exponent", false, 0);
@@ -46,8 +46,8 @@ int main(int argc, char **argv) {
     const float maxError = p.get<float>("error");
     const int maxTriangles = p.get<int>("triangles");
     const int maxPoints = p.get<int>("points");
+    const float zoffset_fraction = p.get<float>("zoffset_fraction");
     const float baseHeight = p.get<float>("base");
-    const bool level = p.exist("level");
     const bool invert = p.exist("invert");
     const int blurSigma = p.get<int>("blur");
     const float gamma = p.get<float>("gamma");
@@ -74,7 +74,7 @@ int main(int argc, char **argv) {
 
     // load heightmap
     auto done = timed("loading heightmap");
-    const auto hm = std::make_shared<Heightmap>(inFile);
+    const auto hm = std::make_shared<Heightmap>(inFile, zoffset_fraction);
     done();
 
     int w = hm->Width();
@@ -89,11 +89,6 @@ int main(int argc, char **argv) {
     // display statistics
     if (!quiet) {
         printf("  %d x %d = %d pixels\n", w, h, w * h);
-    }
-
-    // auto level heightmap
-    if (level) {
-        hm->AutoLevel();
     }
 
     // invert heightmap

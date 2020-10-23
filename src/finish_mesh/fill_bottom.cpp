@@ -160,29 +160,12 @@ static glm::ivec2 ChooseNextEdge(const int current_node,
     return connected_edges.at(0);
   }
 
-  if (connected_edges.size() == 3) {
-    //fprintf(stderr, "Oh shit, three connected edges [(%d, %d), (%d, %d), (%d, %d)].",
-    //        connected_edges.at(0)[0],
-    //        connected_edges.at(0)[1],
-    //        connected_edges.at(1)[0],
-    //        connected_edges.at(1)[1],
-    //        connected_edges.at(2)[0],
-    //        connected_edges.at(2)[1]);
-    //
-    //fprintf(stderr, " That's a non-manifold vertex. Time to throw a hail mary...\n");
-
-    // try to filter the connected_edges
-    return ResolveNonmanifoldVertex(current_node,
-                                    previous_edge,
-                                    connected_edges,
-                                    //connected_edges.at(0),
-                                    //connected_edges.at(1),
-                                    //connected_edges.at(2),
-                                    vertices,
-                                    winding);
-  }
-
-  fprintf(stderr, "Got a weird and unhandled number of candidate edges %lu.\n", connected_edges.size());
+  // try to filter the connected_edges
+  return ResolveNonmanifoldVertex(current_node,
+                                  previous_edge,
+                                  connected_edges,
+                                  vertices,
+                                  winding);
   std::exit(1);
 }
 

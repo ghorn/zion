@@ -8,28 +8,46 @@
 #include "blur.h"
 #include "src/common/heightmap_data.hpp"
 
-Heightmap::Heightmap(const std::string &path) :
+Heightmap::Heightmap(const std::string &path, const float zoffset_fraction) :
     m_Width(0),
     m_Height(0)
 {
-    //int w, h, c;
-    //uint16_t *data = stbi_load_16(path.c_str(), &w, &h, &c, 1);
-    //if (!data) {
-    //    return;
-    //}
     ReadHeightmapData(path, &m_Width, &m_Height, &m_Data);
-    //m_Width = w;
-    //m_Height = h;
-    //const int n = w * h;
-    //const float m = 1.f / 65535.f;
-    //m_Data.resize(n);
+
+    if (zoffset_fraction > 0) {
+        bool initialized = false;
+        float lo = m_Data[0];
+        float hi = m_Data[0];
+        for (int i = 0; i < m_Data.size(); i++) {
+            const float z = m_Data[i];
+            if (!std::isnan(z)) {
+                if (!initialized) {
+                  lo = z;
+                  hi = z;
+                  initialized = true;
+                }
+                lo = std::min(lo, z);
+                hi = std::max(hi, z);
+            }
+        }
+
+        // compute z offset from min/max height
+        // relief == max - min
+        // zoff / (relief + zoff) == frac
+        // zoff == relief * frac / (1 - frac)
+        const float z_offset = (hi - lo) * zoffset_fraction / (1 - zoffset_fraction);
+        fprintf(stderr, "z offset: %.2f\n", z_offset);
+
+        for (int i = 0; i < m_Data.size(); i++) {
+            m_Data[i] = m_Data[i] + z_offset;
+        }
+    }
+
     for (int i = 0; i < m_Width*m_Height; i++) {
-        // m_Data[i] = data[i] * m;
         if (std::isnan(m_Data[i])) {
           m_Data[i] = 0.0;
         }
     }
-    //free(data);
 }
 
 Heightmap::Heightmap(
@@ -40,21 +58,6 @@ Heightmap::Heightmap(
     m_Height(height),
     m_Data(data)
 {}
-
-void Heightmap::AutoLevel() {
-    float lo = m_Data[0];
-    float hi = m_Data[0];
-    for (int i = 0; i < m_Data.size(); i++) {
-        lo = std::min(lo, m_Data[i]);
-        hi = std::max(hi, m_Data[i]);
-    }
-    if (hi == lo) {
-        return;
-    }
-    for (int i = 0; i < m_Data.size(); i++) {
-        m_Data[i] = (m_Data[i] - lo) / (hi - lo);
-    }
-}
 
 void Heightmap::Invert() {
     for (int i = 0; i < m_Data.size(); i++) {

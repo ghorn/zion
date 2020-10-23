@@ -7,7 +7,7 @@
 
 class Heightmap {
 public:
-    Heightmap(const std::string &path);
+    Heightmap(const std::string &path, const float zoffset_fraction);
 
     Heightmap(
         const int width,

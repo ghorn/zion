@@ -4,7 +4,9 @@ genrule(
     name = "pixel_data",
     tools = ["//src:dems_to_pixel_data"],
     outs = ["pixel_data.dat"],
-    srcs = ["//dems:{}.img".format(dem_name) for dem_name in dem_names()],
+    srcs = ["//dems:{}.img".format(dem_name) for dem_name in dem_names()] +
+           ["//dems:{}.img.aux.xml".format(dem_name) for dem_name in dem_names()] +
+           ["//dems:{}.img.xml".format(dem_name) for dem_name in dem_names()],
     cmd = """
 $(location //src:dems_to_pixel_data) {} --output $@
     """.format(",".join(["$(location //dems:{}.img)".format(dem_name) for dem_name in dem_names()])),
@@ -25,13 +27,14 @@ decimations = [
     1,
     #3,
     #5,
-    #10, #20, 40,
+    #10,
+    #20,
+    #40,
 ]
 all_num_triangles = [
-      (100000, "100k"),
-      (500000, "500k"),
-     (1000000,   "1m"),
-     (5000000,   "5m"),
+    #(  500000, "500k"),
+    ( 1000000,   "1m"),
+    ( 5000000,   "5m"),
     (10000000,  "10m"),
     (15000000,  "15m"),
     (20000000,  "20m"),
@@ -51,7 +54,7 @@ du -hs $@
     )
     for decimation in decimations
     for trim in [True, False]
-    for trim_suffix in ["trim" if trim else "notrim"]
+    for trim_suffix in ["halfpark" if trim else "fullpark"]
 ]
 
 # Turn the blob into a ply with hmm.
@@ -63,7 +66,7 @@ du -hs $@
         srcs = [":floating_blob_decim{}_{}.dat".format(decimation, trim_suffix)],
         outs = [ply_path],
         cmd = """
-time $(location //src:hmm) -t {} --border-size 100 --border-height 0 $< $@
+time $(location //src:hmm) -t {} --zoffset_fraction 0.25 --border-size 100 --border-height 0 $< $@
 du -hs $@
 """.format(num_triangles),
     ),
@@ -142,7 +145,7 @@ du -hs $@
     for decimation in decimations
     for trim in [True, False]
     for num_triangles, num_triangles_string in all_num_triangles
-    for trim_suffix in ["trim" if trim else "notrim"]
+    for trim_suffix in ["halfpark" if trim else "fullpark"]
     for suffix in ["decim{}_{}_triangles_{}".format(decimation, num_triangles_string, trim_suffix)]
     for ply_path in ["hmm_{}.ply".format(suffix)]
 ]
@@ -181,7 +184,7 @@ du -hs $@
     ]
     for decimation in decimations if decimation >= 10
     for trim in [True, False]
-    for trim_suffix in ["trim" if trim else "notrim"]
+    for trim_suffix in ["halfpark" if trim else "fullpark"]
     for suffix in ["decim{}_{}".format(decimation, trim_suffix)]
 ]
 
