@@ -1,5 +1,6 @@
 build --compilation_mode=opt
 run --compilation_mode=opt
 
-# avoid downloading datasets twice?
-#build --distinct_host_configuration=false
+# avoid downloading datasets twice
+build --distinct_host_configuration=false
+build --javabase=@bazel_tools//tools/jdk:remote_jdk11

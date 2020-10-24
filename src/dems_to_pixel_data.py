@@ -109,11 +109,11 @@ class Dem():
 
 def main():
   parser = argparse.ArgumentParser()
-  parser.add_argument('dem_paths', help='Input DEM files, comma separated.')
-  parser.add_argument('--output', required=True, help='Output path for pixel array.')
+  parser.add_argument('output', help='Output path for pixel array.')
+  parser.add_argument('dem_paths', nargs='*', help='Input DEM files, comma separated.')
   flags = parser.parse_args()
 
-  flags.dem_paths = flags.dem_paths.split(',')
+  flags.dem_paths = [path for path in flags.dem_paths if path.endswith('.img')]
   
   gdal.UseExceptions()
 

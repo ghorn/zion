@@ -1,15 +1,13 @@
-load("//dems:dem_names.bzl", "dem_names")
+load("//:dem_names.bzl", "dem_names")
 
 genrule(
     name = "pixel_data",
     tools = ["//src:dems_to_pixel_data"],
     outs = ["pixel_data.dat"],
-    srcs = ["//dems:{}.img".format(dem_name) for dem_name in dem_names()] +
-           ["//dems:{}.img.aux.xml".format(dem_name) for dem_name in dem_names()] +
-           ["//dems:{}.img.xml".format(dem_name) for dem_name in dem_names()],
+    srcs = ["@dem_{}//:dem_img_{}".format(dem_name, dem_name) for dem_name in dem_names()],
     cmd = """
-$(location //src:dems_to_pixel_data) {} --output $@
-    """.format(",".join(["$(location //dems:{}.img)".format(dem_name) for dem_name in dem_names()])),
+$(location //src:dems_to_pixel_data) $@ {}
+    """.format(" ".join(["$(locations @dem_{}//:dem_img_{})".format(dem_name, dem_name) for dem_name in dem_names()])),
 )
 
 genrule(
