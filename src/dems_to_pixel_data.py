@@ -65,12 +65,12 @@ class Dem():
     return self.dataset.RasterYSize
 
   def get_raster_band_array(self):
-    raster_band_array = self.raster_band.ReadAsArray().T
+    raster_band_array = self.raster_band.ReadAsArray()
     #print('raster band array shape: {}'.format(raster_band_array.shape))
     #print('dataset raster xsize: {}'.format(self.dataset.RasterXSize))
     #print('dataset raster ysize: {}'.format(self.dataset.RasterYSize))
-    assert raster_band_array.shape[0] == self.dataset.RasterXSize
-    assert raster_band_array.shape[1] == self.dataset.RasterYSize
+    assert raster_band_array.shape[0] == self.dataset.RasterYSize
+    assert raster_band_array.shape[1] == self.dataset.RasterXSize
     #print('no data value: {}'.format(self.raster_band.GetNoDataValue()))
     #print('unit type: {}'.format(self.raster_band.GetUnitType()))
     #print('offset: {}'.format(self.raster_band.GetOffset()))
@@ -119,8 +119,6 @@ def main():
 
   print('loading DEMs...')
   dems = [Dem(filename) for filename in flags.dem_paths]
-  # The non-square titles have something funky going on. They are inserted in the wrong place.
-  dems = [dem for dem in dems if dem.x_size() == 1500 and dem.y_size() == 1500]
 
   # Xgeo = GT(0) + Xpixel*GT(1) + Yline*GT(2)
   # Ygeo = GT(3) + Xpixel*GT(4) + Yline*GT(5)
@@ -136,17 +134,19 @@ def main():
   print()
   print('getting min/max extents...')
   min_x = np.min([dem.x_origin() for dem in dems])
-  min_y = np.min([dem.y_origin() for dem in dems])
   max_x = np.max([dem.x_origin() + dem.x_size() - 1 for dem in dems])
-  max_y = np.max([dem.y_origin() + dem.y_size() - 1 for dem in dems])
+
+  min_y = np.min([dem.y_origin() - dem.y_size() + 1 for dem in dems])
+  max_y = np.max([dem.y_origin() for dem in dems])
+
   nx = int(max_x - min_x + 1)
   ny = int(max_y - min_y + 1)
   print('min x: {}, max x: {}, num x: {}'.format(min_x, max_x, nx))
   print('min y: {}, may y: {}, num y: {}'.format(min_y, max_y, ny))
 
   print()
-  print('initializing master image ({} x {})...'.format(nx, ny))
-  master_image = np.empty((nx, ny))
+  print('initializing master image (ny {} x nx {})...'.format(ny, nx))
+  master_image = np.empty((ny, nx))
   master_image[:] = np.nan
 
   print()
@@ -155,12 +155,16 @@ def main():
   for k, dem in enumerate(dems):
     #print('inserting {} of {}'.format(k+1, len(dems)))
     x0 = int(dem.x_origin() - min_x)
-    y0 = int(dem.y_origin() - min_y)
     xf = int(dem.x_origin() + dem.x_size() - min_x)
-    yf = int(dem.y_origin() + dem.y_size() - min_y)
+    y0 = int(dem.y_origin() - dem.y_size() + 1 - min_y)
+    yf = int(dem.y_origin() - min_y + 1)
     raster_band_array = dem.get_raster_band_array()
-    master_image[x0:xf, y0:yf] = np.fliplr(raster_band_array)
+    master_image[y0:yf, x0:xf] = np.flipud(raster_band_array)
   print('assembled master image in {} seconds'.format(time.time() - t0))
+
+  t0 = time.time()
+  master_image = np.flipud(master_image)
+  print('flipped master image in {} seconds'.format(time.time() - t0))
 
   print('saving {} ({} MB)'.format(flags.output, master_image.size*8/1024/1024))
   with open(flags.output, 'wb') as f:

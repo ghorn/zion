@@ -16,7 +16,7 @@ genrule(
     outs = ["height_map.png"],
     srcs = [":pixel_data.dat"],
     cmd ="""
-$(location //src:pixel_data_to_png) $< $@ --target_dimension 1000
+$(location //src:pixel_data_to_png) $< $@ --target_dimension 2000
 du -hs $@
 """,
 )
