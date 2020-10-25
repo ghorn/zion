@@ -1,4 +1,5 @@
 load("//:dem_names.bzl", "dem_names")
+load("//:pipeline.bzl", "pipeline")
 
 genrule(
     name = "pixel_data",
@@ -22,199 +23,22 @@ du -hs $@
 )
 
 decimations = [
-    1,
+    #1,
     #3,
     #5,
-    #10,
-    #20,
+    10,
+    20,
     #40,
 ]
-all_num_triangles = [
+num_triangles = [
     #(  500000, "500k"),
     ( 1000000,   "1m"),
     ( 5000000,   "5m"),
-    (10000000,  "10m"),
-    (15000000,  "15m"),
-    (20000000,  "20m"),
-    (30000000,  "30m"),
+    #(10000000,  "10m"),
+    #(15000000,  "15m"),
+    #(20000000,  "20m"),
+    #(30000000,  "30m"),
 ]
+trims = [True, False]
 
-[
-    genrule(
-        name = "floating_blob_decim{}_{}".format(decimation, trim_suffix),
-        tools = ["//src:pixel_data_to_floating_blob"],
-        srcs = [":pixel_data.dat"],
-        outs = ["floating_blob_decim{}_{}.dat".format(decimation, trim_suffix)],
-        cmd ="""
-$(location //src:pixel_data_to_floating_blob) $< $@ --decimation {} {}
-du -hs $@
-""".format(decimation, ("--trim" if trim else "")),
-    )
-    for decimation in decimations
-    for trim in [True, False]
-    for trim_suffix in ["halfpark" if trim else "fullpark"]
-]
-
-# Turn the blob into a ply with hmm.
-[
-    [
-    genrule(
-        name = "ply_hmm_decim{}_{}_triangles_{}".format(decimation, num_triangles_string, trim_suffix),
-        tools = ["//src:hmm"],
-        srcs = [":floating_blob_decim{}_{}.dat".format(decimation, trim_suffix)],
-        outs = [ply_path],
-        cmd = """
-time $(location //src:hmm) -t {} --zoffset_fraction 0.25 --border-size 100 --border-height 0 $< $@
-du -hs $@
-""".format(num_triangles),
-    ),
-
-    # execute roundtrip test
-    sh_test(
-        name="test_roundtrip_{}".format(suffix),
-        srcs = ["test_roundtrip_ply.sh"],
-        data = [ply_path, "//src:roundtrip_ply"],
-        args = ["$(location //src:roundtrip_ply)", "$(location " + ply_path + ")"],
-    ),
-
-    genrule(
-        name="ply_hmm_{}_nobase".format(suffix),
-        tools = ["//src:trim_bottom"],
-        srcs = ["hmm_{}.ply".format(suffix)],
-        outs = ["hmm_{}_nobase.ply".format(suffix)],
-        cmd = """
-$(location //src:trim_bottom) $< $@
-du -hs $@
-""",
-    ),
-
-    genrule(
-        name="ply_hmm_{}_with_base".format(suffix),
-        tools = ["//src:fill_bottom"],
-        srcs = ["hmm_{}_nobase.ply".format(suffix)],
-        outs = ["hmm_{}_with_base.ply".format(suffix), "bottom_triangles_{}.py".format(suffix)],
-        cmd = """
-$(location //src:fill_bottom) $< $(OUTS)
-du -hs $(OUTS)
-""",
-    ),
-
-    py_binary(
-        name = "plot_bottom_triangles_{}".format(suffix),
-        main = "bottom_triangles_{}.py".format(suffix),
-        srcs = ["bottom_triangles_{}.py".format(suffix)],
-        srcs_version = "PY3",
-        python_version = "PY3",
-    ),
-
-    genrule(
-        name="bottom_triangles_picture_{}".format(suffix),
-        tools = ["plot_bottom_triangles_{}".format(suffix)],
-        outs = ["bottom_triangles_{}.png".format(suffix)],
-        cmd = """
-DISPLAY=:0.0 $(location plot_bottom_triangles_{}) $@
-""".format(suffix),
-    ),
-
-#    genrule(
-#        name="stl_hmm_{}".format(suffix),
-#        tools = ["//meshlab:meshlab_server"],
-#        srcs = ["hmm_{}_nobase.ply".format(suffix)],
-#        outs = ["hmm_{}.stl".format(suffix)],
-#        local=True,
-#        cmd = """
-#DISPLAY=:0.0 $(location //meshlab:meshlab_server) -i $< -o $@
-#du -hs $@
-#""",
-#    ),
-
-    genrule(
-        name="stl_hmm_{}".format(suffix),
-        tools = ["//meshlab:meshlab_server"],
-        srcs = ["hmm_{}_with_base.ply".format(suffix)],
-        outs = ["hmm_{}.stl".format(suffix)],
-        local=True,
-        cmd = """
-DISPLAY=:0.0 $(location //meshlab:meshlab_server) -i $< -o $@
-du -hs $@
-""",
-    ),
-    ]
-    for decimation in decimations
-    for trim in [True, False]
-    for num_triangles, num_triangles_string in all_num_triangles
-    for trim_suffix in ["halfpark" if trim else "fullpark"]
-    for suffix in ["decim{}_{}_triangles_{}".format(decimation, num_triangles_string, trim_suffix)]
-    for ply_path in ["hmm_{}.ply".format(suffix)]
-]
-
-
-
-# Turn the blob into a ply with hmstl.
-[
-    [
-    # Turn the blob into a ply with hmply., but only for coarse decimation.
-    genrule(
-        name="ply_hmstl_{}".format(suffix),
-        tools = ["//src:hmply"],
-        srcs = [":floating_blob_decim{}_{}.dat".format(decimation, trim_suffix)],
-        outs = ["hmstl_{}.ply".format(suffix)],
-        cmd = """
-time $(location //src:hmply) -i $< -b 0.25 -x 170
->&2 du -hs header.dat vertices.dat triangles.dat
->&2 echo "\nconcatenating files"
-time cat header.dat vertices.dat triangles.dat > $@
-rm header.dat vertices.dat triangles.dat
-du -hs $@
-    """.format(decimation),
-    ),
-    genrule(
-        name="stl_hmstl_{}".format(suffix),
-        tools = ["//meshlab:meshlab_server"],
-        srcs = ["hmstl_{}.ply".format(suffix)],
-        outs = ["hmstl_{}.stl".format(suffix)],
-        local=True,
-        cmd = """
-DISPLAY=:0.0 $(location //meshlab:meshlab_server) -i $< -o $@
-du -hs $@
-""",
-    )
-    ]
-    for decimation in decimations if decimation >= 10
-    for trim in [True, False]
-    for trim_suffix in ["halfpark" if trim else "fullpark"]
-    for suffix in ["decim{}_{}".format(decimation, trim_suffix)]
-]
-
-## Simplify the ply with meshlab.
-#genrule(
-#    name="simplified_ply",
-#    tools = ["//meshlab:meshlab_server"],
-#    srcs = [
-#        "height_map_decim{}.ply".format(decimation),
-#        "simplify.mlx",
-#    ],
-#    outs = ["height_map_decim{}_simplified.ply".format(decimation)],
-#    cmd = """
-#DISPLAY=:0.0 time $(location //meshlab:meshlab_server) -i $(location height_map_decim{}.ply) -o $@ -s $(location simplify.mlx)
-#du -hs $@
-#""".format(decimation),
-#    local=True,
-#    tags = ["manual"],
-#)
-#
-## Convert simplified mesh to STL with meshlab.
-#genrule(
-#    name="simplified_stl",
-#    tools = ["//meshlab:meshlab_server"],
-#    srcs = [
-#        "height_map_decim{}_simplified.ply".format(decimation),
-#    ],
-#    outs = ["height_map_decim{}_simplified.stl".format(decimation)],
-#    cmd = """
-#DISPLAY=:0.0 $(location //meshlab:meshlab_server) -i $< -o $@
-#du -hs $@
-#""".format(decimation),
-#    local=True,
-#    tags = ["manual"],
-#)
+pipeline(decimations, num_triangles, trims)
