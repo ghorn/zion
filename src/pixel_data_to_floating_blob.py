@@ -54,9 +54,9 @@ def main():
   print('converted to 32 bit floats in {} seconds'.format(time.time() - t0))
 
   if flags.trim:
-    #heightmap_data[:11036, 21793:] = np.nan
-    #heightmap_data[:12431, 23064:] = np.nan
-    heightmap_data[:12090, 22475:] = np.nan
+    #heightmap_data[:14731, :12328] = np.nan
+    #heightmap_data[:14868, :8799] = np.nan
+    heightmap_data[:18927, :12328] = np.nan
 
   # trim leading and trailing rows/cols that are all nans
   t0 = time.time()
