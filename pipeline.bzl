@@ -1,4 +1,5 @@
-def pipeline(decimations, all_num_triangles, trims):
+
+def pipeline(decimations, all_num_triangles, trims, max_xy_size):
     for decimation in decimations:
         for trim in trims:
             trim_name = "halfpark" if trim else "fullpark"
@@ -34,7 +35,7 @@ du -hs $@
     """.format(decimation),
                 )
                 native.genrule(
-                    name="grid_convert_to_stl_{}".format(ident),
+                    name = "grid_ply2stl_{}".format(ident),
                     tools = ["//meshlab:meshlab_server"],
                     srcs = ["grid_{}.ply".format(ident)],
                     outs = ["grid_{}.stl".format(ident)],
@@ -73,9 +74,20 @@ du -hs $@
                 )
 
                 native.genrule(
+                    name="scale_{}".format(ident),
+                    tools = ["//src:scale"],
+                    srcs = ["cut_base_{}.ply".format(ident)],
+                    outs = ["scaled_{}.ply".format(ident)],
+                    cmd = """
+$(location //src:scale) {} $< $@
+du -hs $@
+""".format(max_xy_size),
+                )
+
+                native.genrule(
                     name="add_base_{}".format(ident),
                     tools = ["//src:fill_bottom"],
-                    srcs = ["cut_base_{}.ply".format(ident)],
+                    srcs = ["scaled_{}.ply".format(ident)],
                     outs = [
                         "final_{}.ply".format(ident),
                         "bottom_triangles_{}.py".format(ident),

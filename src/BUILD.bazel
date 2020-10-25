@@ -166,6 +166,16 @@ cc_binary(
 )
 
 cc_binary(
+    name = "scale",
+    srcs = [
+        "finish_mesh/scale.cpp",
+    ],
+    copts = cxx_opts,
+    visibility = ["//visibility:public"],
+    deps = [":common"],
+)
+
+cc_binary(
     name = "fill_bottom",
     srcs = [
         "finish_mesh/fill_bottom.cpp",

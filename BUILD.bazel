@@ -22,6 +22,8 @@ du -hs $@
 """,
 )
 
+max_xy_size = 175
+
 decimations = [
     #1,
     #3,
@@ -41,4 +43,4 @@ num_triangles = [
 ]
 trims = [True, False]
 
-pipeline(decimations, num_triangles, trims)
+pipeline(decimations, num_triangles, trims, max_xy_size)
