@@ -1,4 +1,4 @@
-workspace(name = "zion_project")
+workspace(name = "zion")
 
 load("//:dem_names.bzl", "dem_names", "dem_checksum")
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
