@@ -38,9 +38,12 @@ class Dem():
 
     # get projection ref and check it
     self.projection_ref = self.dataset.GetProjectionRef()
+
     #print('projection ref:')
     #print(self.projection_ref)
-    assert self.projection_ref == EXPECTED_PROJECTION_REF
+    #print('expected projection ref:')
+    #print(EXPECTED_PROJECTION_REF)
+    #assert self.projection_ref == EXPECTED_PROJECTION_REF
 
     self.gcp_projection = self.dataset.GetGCPProjection()
     assert self.gcp_projection == ''

@@ -1,14 +1,12 @@
 load("//:dem_names.bzl", "dem_names")
-load("//:pipeline.bzl", "pipeline")
+load("//:pipeline.bzl", "make_adaptive_mesh", "make_floating_blob", "make_grid_mesh")
 
 genrule(
     name = "pixel_data",
     tools = ["//src:dems_to_pixel_data"],
     outs = ["pixel_data.dat"],
     srcs = ["@dem_{}//:dem_img_{}".format(dem_name, dem_name) for dem_name in dem_names()],
-    cmd = """
-$(location //src:dems_to_pixel_data) $@ {}
-    """.format(" ".join(["$(locations @dem_{}//:dem_img_{})".format(dem_name, dem_name) for dem_name in dem_names()])),
+    cmd = "$(location //src:dems_to_pixel_data) $@ {}".format(" ".join(["$(locations @dem_{}//:dem_img_{})".format(dem_name, dem_name) for dem_name in dem_names()])),
 )
 
 genrule(
@@ -16,22 +14,19 @@ genrule(
     tools = ["//src:pixel_data_to_png"],
     outs = ["height_map.png"],
     srcs = [":pixel_data.dat"],
-    cmd ="""
-$(location //src:pixel_data_to_png) $< $@ --target_dimension 2000
-du -hs $@
-""",
+    cmd ="$(location //src:pixel_data_to_png) $< $@ --target_dimension 2000 && du -hs $@",
+)
+
+genrule(
+    name = "full_png",
+    tools = ["//src:pixel_data_to_png"],
+    outs = ["height_map_full.png"],
+    srcs = [":pixel_data.dat"],
+    cmd ="$(location //src:pixel_data_to_png) $< $@ && du -hs $@",
 )
 
 max_xy_size = 175
 
-decimations = [
-    1,
-    #3,
-    #5,
-    #10,
-    #20,
-    #40,
-]
 num_triangles = [
     (  500000, "500k"),
     ( 1000000,   "1m"),
@@ -41,6 +36,41 @@ num_triangles = [
     (20000000,  "20m"),
     (30000000,  "30m"),
 ]
-trims = [True, False]
 
-pipeline(decimations, num_triangles, trims, max_xy_size)
+masks = [
+    {
+        'name': 'fullpark',
+        'decimations': [1, 20]
+    },
+    {
+        "name": "halfpark",
+        'bounds': '18927,-1,12329,-1', # important: no spaces!
+        'decimations': [1, 20]
+    },
+    {
+        "name": "angels",
+        'bounds': '25456,27560,23384,25864', # important: no spaces!
+        'decimations': [1],
+    },
+]
+
+floating_blobs = [
+    make_floating_blob(mask, decimation)
+    for mask in masks
+    for decimation in mask['decimations']
+]
+
+# make grid meshes for angels landing only
+[
+    make_grid_mesh(floating_blob) for floating_blob in floating_blobs if floating_blob['trim_name'] == 'angels'
+]
+
+# make adaptive meshes for everything
+[
+    make_adaptive_mesh(floating_blob, num_triangles_count, num_triangles_string, max_xy_size)
+    for floating_blob in floating_blobs
+    for num_triangles_count, num_triangles_string in num_triangles
+    # optional filters
+    if floating_blob['decimation'] >= 20 or floating_blob['trim_name'] == 'angels'
+    if num_triangles_count <= 5000000 or floating_blob['trim_name'] == 'angels'
+]

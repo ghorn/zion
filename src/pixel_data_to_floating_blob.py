@@ -38,7 +38,7 @@ def main():
   parser.add_argument('height_map_path', help='Input height map data path.')
   parser.add_argument('output_path', help='Output path for blob.')
   parser.add_argument('--decimation', type=int, help='Optional downsample factor.')
-  parser.add_argument('--trim', action='store_true')
+  parser.add_argument('--trim')
 
   flags = parser.parse_args()
 
@@ -54,9 +54,15 @@ def main():
   print('converted to 32 bit floats in {} seconds'.format(time.time() - t0))
 
   if flags.trim:
-    #heightmap_data[:14731, :12328] = np.nan
-    #heightmap_data[:14868, :8799] = np.nan
-    heightmap_data[:18927, :12328] = np.nan
+    # Expect flags.trim to be a string like '22,2222,44,4444'
+    # Parse this into (min_x, max_x, min_y, max_y).
+    trim = eval(flags.trim)
+    assert len(trim) == 4
+    min_x, max_x, min_y, max_y = trim
+    heightmap_data[    0:min_x, :] = np.nan
+    heightmap_data[max_x:   -1, :] = np.nan
+    heightmap_data[:,     0:min_y] = np.nan
+    heightmap_data[:, max_y:   -1] = np.nan
 
   # trim leading and trailing rows/cols that are all nans
   t0 = time.time()
