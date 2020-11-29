@@ -36,12 +36,12 @@ du -hs $@
                 )
                 native.genrule(
                     name = "grid_ply2stl_{}".format(ident),
-                    tools = ["//meshlab:meshlab_server"],
+                    tools = ["//src:ply2stl"],
                     srcs = ["grid_{}.ply".format(ident)],
                     outs = ["grid_{}.stl".format(ident)],
                     local=True,
                     cmd = """
-DISPLAY=:0.0 $(location //meshlab:meshlab_server) -i $< -o $@
+$(location //src:ply2stl) $< $@
 du -hs $@
 """,
                 )
@@ -100,12 +100,12 @@ du -hs $(OUTS)
 
                 native.genrule(
                     name="ply2stl_{}".format(ident),
-                    tools = ["//meshlab:meshlab_server"],
+                    tools = ["//src:ply2stl"],
                     srcs = ["final_{}.ply".format(ident)],
                     outs = ["final_{}.stl".format(ident)],
                     local=True,
                     cmd = """
-DISPLAY=:0.0 $(location //meshlab:meshlab_server) -i $< -o $@
+$(location //src:ply2stl) $< $@
 du -hs $@
 """,
                 )

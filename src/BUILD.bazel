@@ -124,6 +124,17 @@ cc_binary(
     deps = [":common"],
 )
 
+# Convert PLY to STL.
+cc_binary(
+    name = "ply2stl",
+    srcs = [
+        "ply2stl.cpp",
+    ],
+    copts = cxx_opts,
+    visibility = ["//visibility:public"],
+    deps = [":common"],
+)
+
 # convert data blob to PLY mesh
 cc_binary(
     name = "hmm",
