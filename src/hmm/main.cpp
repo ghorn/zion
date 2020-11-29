@@ -4,10 +4,10 @@
 #include <string>
 
 #include "src/common/ply.hpp"
+#include "src/common/stl.hpp"
 #include "base.h"
 #include "cmdline.h"
 #include "heightmap.h"
-#include "stl.h"
 #include "triangulator.h"
 
 int main(int argc, char **argv) {
