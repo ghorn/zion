@@ -1,5 +1,3 @@
-load("@rules_python//python:defs.bzl", "py_binary")
-
 # Convert DEMs to raw pixel data.
 py_binary(
     name = "dems_to_pixel_data",
