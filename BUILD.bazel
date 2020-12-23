@@ -2,11 +2,25 @@ load("//:dem_names.bzl", "dem_names")
 load("//:pipeline.bzl", "make_adaptive_mesh", "make_floating_blob", "make_grid_mesh")
 
 genrule(
+    name="merge_zion_dems",
+    srcs = ["@dem_{}//:dem_img_{}".format(dem_name, dem_name) for dem_name in dem_names()],
+    cmd = "gdal_merge.py -init -3.4028230607370965e+38 -a_nodata -3.4028230607370965e+38 -n -3.4028230607370965e+38 -o $@ $(SRCS)",
+    outs = ["merged_zion_dems.tif"],
+)
+
+
+genrule(
     name = "pixel_data",
     tools = ["//src:dems_to_pixel_data"],
     outs = ["pixel_data.dat"],
-    srcs = ["@dem_{}//:dem_img_{}".format(dem_name, dem_name) for dem_name in dem_names()],
-    cmd = "$(location //src:dems_to_pixel_data) $@ {}".format(" ".join(["$(locations @dem_{}//:dem_img_{})".format(dem_name, dem_name) for dem_name in dem_names()])),
+
+    # zion
+    srcs = [":merged_zion_dems.tif"],
+
+    cmd = """
+echo $(SRCS)
+$(location //src:dems_to_pixel_data) $@ $(SRCS)
+"""
 )
 
 genrule(

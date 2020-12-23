@@ -14,12 +14,10 @@ class Dem():
 
     # get geo transform
     self.raw_geo_transform = self.dataset.GetGeoTransform()
-    #print('raw geo transform:')
-    #print(self.raw_geo_transform)
-    assert self.raw_geo_transform[1] == 1.0 # pixel width
+    print('raw geo transform:')
+    print(self.raw_geo_transform)
     assert self.raw_geo_transform[2] == 0.0
     assert self.raw_geo_transform[4] == 0.0
-    assert self.raw_geo_transform[5] == -1.0 # pixel height
 
     #self.geo_transform = {
     #  'origin_lon' : self.raw_geo_transform[0],
@@ -46,9 +44,9 @@ class Dem():
     #assert self.projection_ref == EXPECTED_PROJECTION_REF
 
     self.gcp_projection = self.dataset.GetGCPProjection()
-    assert self.gcp_projection == ''
-
-    return
+    print("projection:")
+    print(self.gcp_projection)
+    #assert self.gcp_projection == ''
 
     #print('raster band array type:')
     #print(type(self.raster_band_array))
@@ -60,6 +58,12 @@ class Dem():
 
   def y_origin(self):
     return self.raw_geo_transform[3]
+
+  def pixel_width(self):
+    return self.raw_geo_transform[1]
+
+  def pixel_height(self):
+    return self.raw_geo_transform[5]
 
   def x_size(self):
     return self.dataset.RasterXSize
@@ -78,7 +82,14 @@ class Dem():
     #print('unit type: {}'.format(self.raster_band.GetUnitType()))
     #print('offset: {}'.format(self.raster_band.GetOffset()))
     #print('scale: {}'.format(self.raster_band.GetScale()))
-    raster_band_array[np.where(raster_band_array == self.raster_band.GetNoDataValue())] = np.nan
+    #print('value with no data: ' + str(self.raster_band.GetNoDataValue()))
+    #print('num points without value: ')
+    #print(len(np.where(raster_band_array == self.raster_band.GetNoDataValue())))
+    #print('num points with very low values: ')
+    #print(len(np.where(raster_band_array < -1e38)))
+    #exit(1)
+    
+    #raster_band_array[np.where(raster_band_array == self.raster_band.GetNoDataValue())] = np.nan
     return raster_band_array
 
 
@@ -113,61 +124,32 @@ class Dem():
 def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('output', help='Output path for pixel array.')
-  parser.add_argument('dem_paths', nargs='*', help='Input DEM files, comma separated.')
+  parser.add_argument('dem_path', help='Input DEM file.')
   flags = parser.parse_args()
 
-  flags.dem_paths = [path for path in flags.dem_paths if path.endswith('.img')]
-  
   gdal.UseExceptions()
 
-  print('loading DEMs...')
-  dems = [Dem(filename) for filename in flags.dem_paths]
-
-  # Xgeo = GT(0) + Xpixel*GT(1) + Yline*GT(2)
-  # Ygeo = GT(3) + Xpixel*GT(4) + Yline*GT(5)
-  #
-  # In case of north up images, the GT(2) and GT(4) coefficients are zero, and the GT(1) is pixel
-  # width, and GT(5) is pixel height. The (GT(0),GT(3)) position is the top left corner of the top
-  # left pixel of the raster.
-  #
-  # Note that the pixel/line coordinates in the above are from (0.0,0.0) at the top left corner
-  # of the top left pixel to (width_in_pixels,height_in_pixels) at the bottom right corner of
-  # the bottom right pixel. The pixel/line location of the center of the top left pixel would
-  # therefore be (0.5,0.5).
-  print()
-  print('getting min/max extents...')
-  min_x = np.min([dem.x_origin() for dem in dems])
-  max_x = np.max([dem.x_origin() + dem.x_size() - 1 for dem in dems])
-
-  min_y = np.min([dem.y_origin() - dem.y_size() + 1 for dem in dems])
-  max_y = np.max([dem.y_origin() for dem in dems])
-
-  nx = int(max_x - min_x + 1)
-  ny = int(max_y - min_y + 1)
-  print('min x: {}, max x: {}, num x: {}'.format(min_x, max_x, nx))
-  print('min y: {}, may y: {}, num y: {}'.format(min_y, max_y, ny))
-
-  print()
-  print('initializing master image (ny {} x nx {})...'.format(ny, nx))
-  master_image = np.empty((ny, nx))
-  master_image[:] = np.nan
+  print('loading DEM...')
+  dem = Dem(flags.dem_path)
+  print('x size: ' + str(dem.x_size()))
+  print('y size: ' + str(dem.y_size()))
 
   print()
   print('making master image...')
   t0 = time.time()
-  for k, dem in enumerate(dems):
-    #print('inserting {} of {}'.format(k+1, len(dems)))
-    x0 = int(dem.x_origin() - min_x)
-    xf = int(dem.x_origin() + dem.x_size() - min_x)
-    y0 = int(dem.y_origin() - dem.y_size() + 1 - min_y)
-    yf = int(dem.y_origin() - min_y + 1)
-    raster_band_array = dem.get_raster_band_array()
-    master_image[y0:yf, x0:xf] = np.flipud(raster_band_array)
+  master_image = dem.get_raster_band_array()
   print('assembled master image in {} seconds'.format(time.time() - t0))
 
+  print('filling nans to no-data regions...')
   t0 = time.time()
-  master_image = np.flipud(master_image)
-  print('flipped master image in {} seconds'.format(time.time() - t0))
+  master_image[np.where(master_image < -1e30)] = np.nan
+  print('filled nans in {} seconds'.format(time.time() - t0))
+
+  print('rescaling z...')
+  assert np.abs(dem.pixel_width()) == np.abs(dem.pixel_height())
+  t0 = time.time()
+  master_image = master_image * np.abs(dem.pixel_width())
+  print('rescaled z in {} seconds'.format(time.time() - t0))
 
   print('saving {} ({} MB)'.format(flags.output, master_image.size*8/1024/1024))
   with open(flags.output, 'wb') as f:

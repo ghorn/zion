@@ -13,8 +13,8 @@ filegroup(
     name = "dem_img_{dem_name}",
     srcs = [
         "{dem_name}.img",
-        "{dem_name}.img.aux.xml",
-        "{dem_name}.img.xml",
+        #"{dem_name}.img.aux.xml",
+        #"{dem_name}.img.xml",
     ],
     visibility = ["//visibility:public"],
 )
