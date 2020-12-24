@@ -4,6 +4,7 @@ import PIL
 from PIL import Image
 import time
 import numpy as np
+import ctypes
 
 def main():
   parser = argparse.ArgumentParser()
@@ -15,11 +16,16 @@ def main():
   # load data
   t0 = time.time()
   with open(flags.height_map_path, 'rb') as f:
-    heightmap_data = np.load(f)
+    nx = ctypes.c_uint32.from_buffer_copy(f.read(4)).value
+    ny = ctypes.c_uint32.from_buffer_copy(f.read(4)).value
+    buf = f.read()
+    assert len(buf) == nx * ny * 4
+    heightmap_data = np.fromstring(buf, dtype=np.float32, count=nx * ny).reshape(nx, ny)
+    print(heightmap_data.shape)
   print('loaded master image in {} seconds'.format(time.time() - t0))
 
   # downsample
-  if flags.target_dimension:
+  if flags.target_dimension and flags.target_dimension < np.min(heightmap_data.shape):
     t0 = time.time()
     min_shape = np.min(heightmap_data.shape)
     decimation = int(min_shape / flags.target_dimension)
@@ -37,8 +43,7 @@ def main():
 
   # write heightmap image
   t0 = time.time()
-  heightmap_image = PIL.Image.fromarray(heightmap_data)
-  heightmap_image.save(flags.png_path)
+  PIL.Image.fromarray(heightmap_data).save(flags.png_path)
   print('Wrote png in {} seconds to {}'.format(time.time() - t0, flags.png_path))
 
 if __name__=='__main__':

@@ -1,0 +1,9 @@
+load(":zion_dem_names.bzl", "zion_dem_names")
+
+genrule(
+    name="merge_dems",
+    srcs = ["@zion_dem_{}//:dem_img_{}".format(dem_name, dem_name) for dem_name in zion_dem_names()],
+    cmd = "gdal_merge.py -init -3.4028230607370965e+38 -a_nodata -3.4028230607370965e+38 -n -3.4028230607370965e+38 -o $@ $(SRCS)",
+    outs = ["merged_dem.tif"],
+    visibility = ["//visibility:public"],
+)

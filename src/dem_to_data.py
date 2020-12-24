@@ -6,10 +6,8 @@ import time
 
 EXPECTED_PROJECTION_REF = 'PROJCS["NAD_1983_2011_UTM_Zone_12N",GEOGCS["NAD83",DATUM["North_American_Datum_1983",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,-0,-0,-0,0],AUTHORITY["EPSG","6269"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4269"]],PROJECTION["Transverse_Mercator"],PARAMETER["latitude_of_origin",0],PARAMETER["central_meridian",-111],PARAMETER["scale_factor",0.9996],PARAMETER["false_easting",500000],PARAMETER["false_northing",0],UNIT["Meter",1],AUTHORITY["EPSG","26912"]]'
 
-
 class Dem():
   def __init__(self, filename):
-    #print('loading {}'.format(filename))
     self.dataset = gdal.Open(filename, gdal.GA_ReadOnly)
 
     # get geo transform
@@ -73,58 +71,43 @@ class Dem():
 
   def get_raster_band_array(self):
     raster_band_array = self.raster_band.ReadAsArray()
-    #print('raster band array shape: {}'.format(raster_band_array.shape))
-    #print('dataset raster xsize: {}'.format(self.dataset.RasterXSize))
-    #print('dataset raster ysize: {}'.format(self.dataset.RasterYSize))
     assert raster_band_array.shape[0] == self.dataset.RasterYSize
     assert raster_band_array.shape[1] == self.dataset.RasterXSize
-    #print('no data value: {}'.format(self.raster_band.GetNoDataValue()))
-    #print('unit type: {}'.format(self.raster_band.GetUnitType()))
-    #print('offset: {}'.format(self.raster_band.GetOffset()))
-    #print('scale: {}'.format(self.raster_band.GetScale()))
-    #print('value with no data: ' + str(self.raster_band.GetNoDataValue()))
-    #print('num points without value: ')
-    #print(len(np.where(raster_band_array == self.raster_band.GetNoDataValue())))
-    #print('num points with very low values: ')
-    #print(len(np.where(raster_band_array < -1e38)))
-    #exit(1)
-    
-    #raster_band_array[np.where(raster_band_array == self.raster_band.GetNoDataValue())] = np.nan
     return raster_band_array
 
+def _save_image(filename, image):
+  nx = image.shape[0]
+  ny = image.shape[1]
 
-  def plot(self, ax):
-    x0 = self.raw_geo_transform[0]
-    x1 = x0 + self.raster_band_array.shape[1]
-    y0 = self.raw_geo_transform[0]
-    y1 = y0 - self.raster_band_array.shape[0]
-    extent = [x0, x1, y0, y1]
-    im = ax.imshow(self.raster_band_array, extent=extent)#, interpolation='bilinear', cmap=cm.RdYlGn),
-#                 origin='lower', extent=[-3, 3, -3, 3],
-#                 vmax=abs(Z).max(), vmin=-abs(Z).max())
+  f = open(filename, 'wb')
+  f.write(nx.to_bytes(4, byteorder='little', signed=True))
+  f.write(ny.to_bytes(4, byteorder='little', signed=True))
+  image.tofile(f)
+  f.close()
 
-  def plot_surface(self, ax):
-    nx = self.raster_band_array.shape[0]
-    ny = self.raster_band_array.shape[1]
+def trim_nans(heightmap_data):
+  isnan = np.isnan(heightmap_data)
 
-    x0 = self.raw_geo_transform[0]
-    x1 = x0 + nx
-    y0 = self.raw_geo_transform[1]
-    y1 = y0 - ny
+  allnan_axis0 = np.all(isnan, axis=0)
+  allnan_axis1 = np.all(isnan, axis=1)
 
-    X = np.linspace(x0, x1, nx)
-    Y = np.linspace(y0, y1, ny)
-    X, Y = np.meshgrid(X, Y)
-    Z = self.raster_band_array
+  where_nonnan0 = np.squeeze(np.argwhere(~allnan_axis0))
+  where_nonnan1 = np.squeeze(np.argwhere(~allnan_axis1))
 
-    # Plot the surface.
-    surf = ax.plot_surface(X, Y, Z, cmap=cm.coolwarm,
-                           linewidth=0, antialiased=False)
+  if where_nonnan0.size > 0:
+    heightmap_data = heightmap_data[where_nonnan1[0]:where_nonnan1[-1]+1, :]
+  if where_nonnan1.size > 0:
+    heightmap_data = heightmap_data[:, where_nonnan0[0]:where_nonnan0[-1]+1]
+
+  return heightmap_data
+
 
 def main():
   parser = argparse.ArgumentParser()
-  parser.add_argument('output', help='Output path for pixel array.')
   parser.add_argument('dem_path', help='Input DEM file.')
+  parser.add_argument('output_path', help='Output path for pixel array.')
+  parser.add_argument('--decimation', type=int, help='Optional downsample factor.')
+  parser.add_argument('--trim')
   flags = parser.parse_args()
 
   gdal.UseExceptions()
@@ -137,25 +120,65 @@ def main():
   print()
   print('making master image...')
   t0 = time.time()
-  master_image = dem.get_raster_band_array()
+  heightmap_data = dem.get_raster_band_array()
   print('assembled master image in {} seconds'.format(time.time() - t0))
 
   print('filling nans to no-data regions...')
   t0 = time.time()
-  master_image[np.where(master_image < -1e30)] = np.nan
+  heightmap_data[np.where(heightmap_data < -1e30)] = np.nan
   print('filled nans in {} seconds'.format(time.time() - t0))
 
-  print('rescaling z...')
-  assert np.abs(dem.pixel_width()) == np.abs(dem.pixel_height())
+  # convert to float
+  print('converting to 32 bit floats...')
   t0 = time.time()
-  master_image = master_image * np.abs(dem.pixel_width())
-  print('rescaled z in {} seconds'.format(time.time() - t0))
+  heightmap_data = heightmap_data.astype(np.float32)
+  print('converted to 32 bit floats in {} seconds'.format(time.time() - t0))
 
-  print('saving {} ({} MB)'.format(flags.output, master_image.size*8/1024/1024))
-  with open(flags.output, 'wb') as f:
+  # trim
+  if flags.trim:
+    # Expect flags.trim to be a string like '22,2222,44,4444'
+    # Parse this into (min_x, max_x, min_y, max_y).
+    trim = eval(flags.trim)
+    assert len(trim) == 4
+    min_x, max_x, min_y, max_y = trim
+    heightmap_data[    0:min_x, :] = np.nan
+    heightmap_data[max_x:   -1, :] = np.nan
+    heightmap_data[:,     0:min_y] = np.nan
+    heightmap_data[:, max_y:   -1] = np.nan
+
+    # trim leading and trailing rows/cols that are all nans
+    print('trimming nans...')
     t0 = time.time()
-    np.save(f, master_image)
-  print('saved in {} seconds'.format(time.time() - t0))
+    heightmap_data = trim_nans(heightmap_data)
+    print('trimming nans took {} s'.format(time.time() - t0))
+
+  # downsample
+  if flags.decimation:
+    print('decimating...')
+    t0 = time.time()
+    heightmap_data = heightmap_data[::flags.decimation, ::flags.decimation] / flags.decimation
+    print('decimated in {} seconds'.format(time.time() - t0))
+
+  # normalize image height
+  print("Normalizing heightmap...")
+  t0 = time.time()
+  heightmap_data -= np.nanmin(heightmap_data)
+  print("Normalized heightmap in {} seconds.".format(time.time() - t0))
+
+  # write blob
+  print(f"Writing image to {flags.output_path}...")
+  t0 = time.time()
+  _save_image(flags.output_path, heightmap_data)
+  print('Wrote heightmap in {} seconds to {}'.format(time.time() - t0, flags.output_path))
+  print('Dimensions {}, num elements {}'.format(str(heightmap_data.shape), heightmap_data.size))
+
+#  
+#
+#  print('saving {} ({} MB)'.format(flags.output, heightmap_data.size*8/1024/1024))
+#  with open(flags.output, 'wb') as f:
+#    t0 = time.time()
+#    np.save(f, heightmap_data)
+#  print('saved in {} seconds'.format(time.time() - t0))
 
 
 if __name__=='__main__':

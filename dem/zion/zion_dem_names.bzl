@@ -1,4 +1,4 @@
-def dem_names():
+def zion_dem_names():
     return [
         "USGS_NED_OPR_UT_ZionNP_QL2_2016_12SUG240115_IMG_2017",
         "USGS_NED_OPR_UT_ZionNP_QL2_2016_12SUG255115_IMG_2017",
@@ -341,7 +341,7 @@ def dem_names():
     ]
 
 
-_dem_checksums = {
+_zion_dem_checksums = {
     "USGS_NED_OPR_UT_ZionNP_QL2_2016_12SUG015460_IMG_2017": "82cf72c9c4629ba44ca475c7bdeb44f23d55ca1150cc07b2821a0c79f30d4b4d",
     "USGS_NED_OPR_UT_ZionNP_QL2_2016_12SUG015475_IMG_2017": "70171f73d50cdc8391a45e9450d41f4d1e7617c901a2dd8b8f497e492d891588",
     "USGS_NED_OPR_UT_ZionNP_QL2_2016_12SUG030415_IMG_2017": "16c026905a05a9357ff7dbf3812b1e0391a0e1892ae74f3c248f1e11d1eead17",
@@ -682,5 +682,5 @@ _dem_checksums = {
     "USGS_NED_OPR_UT_ZionNP_QL2_2016_12SUG345235_IMG_2017": "7fefe83b8d9ccfcdcd9780a134d3d7ccf4f70cc773c9d4d5cfa22cd562a109a2",
 }
 
-def dem_checksum(name):
-    return _dem_checksums[name]
+def zion_dem_checksum(name):
+    return _zion_dem_checksums[name]

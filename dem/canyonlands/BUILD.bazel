@@ -1,0 +1,35 @@
+FILENAMES = [
+    'n38w110',
+    'n38w111',
+    'n39w110',
+    'n39w111',
+]
+
+[
+    genrule(
+        name="{}_dem".format(name),
+        cmd = """
+unzip $<
+gdal_translate {name}/grd{name}_1/w001001.adf $@
+""".format(name=name),
+        srcs = [
+            name + ".zip",
+        ],
+        outs = [
+            name + ".img",
+        ],
+    )
+    for name in FILENAMES
+]
+
+genrule(
+    name="merge_dem",
+    cmd = """
+gdal_merge.py -o $@ $(SRCS)
+""",
+    srcs = [name + ".img" for name in FILENAMES],
+    outs = [
+        "merged_dem.img",
+    ],
+    visibility = ["//visibility:public"],
+)

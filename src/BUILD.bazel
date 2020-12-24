@@ -1,7 +1,7 @@
-# Convert DEMs to raw pixel data.
+# Convert DEMs to raw floating data.
 py_binary(
-    name = "dems_to_pixel_data",
-    srcs = ["dems_to_pixel_data.py"],
+    name = "dem_to_data",
+    srcs = ["dem_to_data.py"],
     srcs_version = "PY3",
     python_version = "PY3",
     visibility = ["//visibility:public"],
@@ -9,21 +9,13 @@ py_binary(
 
 # Convert raw pixel data to a PNG image.
 py_binary(
-    name = "pixel_data_to_png",
-    srcs = ["pixel_data_to_png.py"],
+    name = "data_to_png",
+    srcs = ["data_to_png.py"],
     srcs_version = "PY3",
     python_version = "PY3",
     visibility = ["//visibility:public"],
 )
 
-# turn pixel data into binary blob of floats
-py_binary(
-    name = "pixel_data_to_floating_blob",
-    srcs = ["pixel_data_to_floating_blob.py"],
-    srcs_version = "PY3",
-    python_version = "PY3",
-    visibility = ["//visibility:public"],
-)
 
 cxx_opts = [
     "-std=c++17",

@@ -1,43 +1,4 @@
-load("//:dem_names.bzl", "dem_names")
-load("//:pipeline.bzl", "make_adaptive_mesh", "make_floating_blob", "make_grid_mesh")
-
-genrule(
-    name="merge_zion_dems",
-    srcs = ["@dem_{}//:dem_img_{}".format(dem_name, dem_name) for dem_name in dem_names()],
-    cmd = "gdal_merge.py -init -3.4028230607370965e+38 -a_nodata -3.4028230607370965e+38 -n -3.4028230607370965e+38 -o $@ $(SRCS)",
-    outs = ["merged_zion_dems.tif"],
-)
-
-
-genrule(
-    name = "pixel_data",
-    tools = ["//src:dems_to_pixel_data"],
-    outs = ["pixel_data.dat"],
-
-    # zion
-    srcs = [":merged_zion_dems.tif"],
-
-    cmd = """
-echo $(SRCS)
-$(location //src:dems_to_pixel_data) $@ $(SRCS)
-"""
-)
-
-genrule(
-    name = "png",
-    tools = ["//src:pixel_data_to_png"],
-    outs = ["height_map.png"],
-    srcs = [":pixel_data.dat"],
-    cmd ="$(location //src:pixel_data_to_png) $< $@ --target_dimension 2000 && du -hs $@",
-)
-
-genrule(
-    name = "full_png",
-    tools = ["//src:pixel_data_to_png"],
-    outs = ["height_map_full.png"],
-    srcs = [":pixel_data.dat"],
-    cmd ="$(location //src:pixel_data_to_png) $< $@ && du -hs $@",
-)
+load("//:pipeline.bzl", "run_pipeline")
 
 max_xy_size = 175
 
@@ -51,40 +12,48 @@ num_triangles = [
     (30000000,  "30m"),
 ]
 
-masks = [
-    {
-        'name': 'fullpark',
-        'decimations': [1, 20]
+config = {
+    "//dem/zion:merged_dem.tif": {
+        'scale': ("1", "1"),
+        'masks': [
+            {
+                'name': 'zion_fullpark',
+                'decimations': [1, 20],
+                'pixel_data': ":pixel_data.dat",
+                'make_grid_mesh': False,
+                'adaptive_meshes': num_triangles,
+            },
+            {
+                "name": "zion_halfpark",
+                'bounds': '18927,-1,12329,-1', # important: no spaces!
+                'decimations': [1, 20],
+                'pixel_data': ":pixel_data.dat",
+                'make_grid_mesh': False,
+                'adaptive_meshes': num_triangles,
+            },
+            {
+                "name": "zion_angels",
+                'bounds': '25456,27560,23384,25864', # important: no spaces!
+                'decimations': [1],
+                'pixel_data': ":pixel_data.dat",
+                'make_grid_mesh': True,
+                'adaptive_meshes': [],
+            },
+        ],
     },
-    {
-        "name": "halfpark",
-        'bounds': '18927,-1,12329,-1', # important: no spaces!
-        'decimations': [1, 20]
+    "//dem/canyonlands:merged_dem.img": {
+        'scale': ("23.990469902078466", "30.869966636771583"),
+        'masks': [
+            {
+                'name': 'canyonlands',
+                'decimations': [1],
+                'bounds': '2600,3070,3700,4450', # important: no spaces!
+                'pixel_data': ":pixel_data_cl.dat",
+                'make_grid_mesh': True,
+                'adaptive_meshes': [],
+            },
+        ],
     },
-    {
-        "name": "angels",
-        'bounds': '25456,27560,23384,25864', # important: no spaces!
-        'decimations': [1],
-    },
-]
+}
 
-floating_blobs = [
-    make_floating_blob(mask, decimation)
-    for mask in masks
-    for decimation in mask['decimations']
-]
-
-# make grid meshes for angels landing only
-[
-    make_grid_mesh(floating_blob) for floating_blob in floating_blobs if floating_blob['trim_name'] == 'angels'
-]
-
-# make adaptive meshes for everything
-[
-    make_adaptive_mesh(floating_blob, num_triangles_count, num_triangles_string, max_xy_size)
-    for floating_blob in floating_blobs
-    for num_triangles_count, num_triangles_string in num_triangles
-    # optional filters
-    if floating_blob['decimation'] >= 20 or floating_blob['trim_name'] == 'angels'
-    if num_triangles_count <= 5000000 or floating_blob['trim_name'] == 'angels'
-]
+run_pipeline(config, max_xy_size)
