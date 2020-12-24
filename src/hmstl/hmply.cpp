@@ -13,8 +13,9 @@
 
 struct Scale {
   bool generate_base;
+  float x_scale;
+  float y_scale;
   float z_scale;
-  float xy_scale;
   float z_offset;
 };
 
@@ -26,8 +27,10 @@ static Scale ComputeScale(const Settings &config, const Heightmap &hm) {
   scale.generate_base = config.generate_base;
   // if xy size is specified, compute scale to be applied to each xyz point
   const float max_height_width = (float)std::max(hm.height, hm.width);
-  scale.xy_scale = config.xy_size <= 0 ? 1 : config.xy_size / max_height_width;
-  scale.z_scale = scale.xy_scale * config.z_scale;
+  const float xyz_scale = config.xy_size <= 0 ? 1 : config.xy_size / max_height_width;
+  scale.x_scale = xyz_scale * config.x_scale;
+  scale.y_scale = xyz_scale * config.y_scale;
+  scale.z_scale = xyz_scale * config.z_scale;
   // compute z offset from min/max height
   // relief == max - min
   // zoff / (relief + zoff) == frac
@@ -304,8 +307,8 @@ static void Mesh(const Heightmap &hm,
 
       // Scale XY coordinates.
       for (glm::vec3 *vert : {&vp, &v1, &v2, &v3, &v4}) {
-        vert->x *= scale.xy_scale;
-        vert->y *= scale.xy_scale;
+        vert->x *= scale.x_scale;
+        vert->y *= scale.y_scale;
       }
 
       // Upper surface
