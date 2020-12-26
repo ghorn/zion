@@ -19,7 +19,6 @@ config = {
             {
                 'name': 'zion_fullpark',
                 'decimations': [1, 20],
-                'pixel_data': ":pixel_data.dat",
                 'make_grid_mesh': False,
                 'adaptive_meshes': num_triangles,
             },
@@ -27,7 +26,6 @@ config = {
                 "name": "zion_halfpark",
                 'bounds': '18927,-1,12329,-1', # important: no spaces!
                 'decimations': [1, 20],
-                'pixel_data': ":pixel_data.dat",
                 'make_grid_mesh': False,
                 'adaptive_meshes': num_triangles,
             },
@@ -35,7 +33,6 @@ config = {
                 "name": "zion_angels",
                 'bounds': '25456,27560,23384,25864', # important: no spaces!
                 'decimations': [1],
-                'pixel_data': ":pixel_data.dat",
                 'make_grid_mesh': True,
                 'adaptive_meshes': [],
             },
@@ -48,7 +45,6 @@ config = {
                 'name': 'canyonlands',
                 'decimations': [1],
                 'bounds': '2600,3070,3700,4450', # important: no spaces!
-                'pixel_data': ":pixel_data_cl.dat",
                 'make_grid_mesh': True,
                 'adaptive_meshes': [],
             },
